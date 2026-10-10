@@ -1032,8 +1032,15 @@ private fun FileMasterApp() {
                             Text(if (darkMode) "التبديل إلى المظهر الفاتح" else "التبديل إلى المظهر الداكن")
                         }
                         OutlinedButton(onClick = { settingsOpen = false; privacyOpen = true }, modifier = Modifier.fillMaxWidth()) {
-                            Text("سياسة الخصوصية")
+                            Text("ملخص الخصوصية")
                         }
+                        OutlinedButton(
+                            onClick = {
+                                val policyIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/Ahmedbecett/FileMaster-Android/blob/main/PRIVACY.md"))
+                                runCatching { context.startActivity(policyIntent) }
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) { Text("فتح سياسة الخصوصية المنشورة") }
                         OutlinedButton(onClick = { settingsOpen = false; deviceInfoOpen = true }, modifier = Modifier.fillMaxWidth()) {
                             Text("معلومات الجهاز والذاكرة")
                         }
