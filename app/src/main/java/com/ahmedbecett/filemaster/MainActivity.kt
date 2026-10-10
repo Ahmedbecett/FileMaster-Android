@@ -190,6 +190,8 @@ private fun FileMasterApp() {
     var managerDialog by remember { mutableStateOf("") }
     var managerName by remember { mutableStateOf("") }
     var moveOperation by remember { mutableStateOf(false) }
+    var trashMode by remember { mutableStateOf(false) }
+    var trashReturnFolder by remember { mutableStateOf<DocumentFile?>(null) }
 
     val zipPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
@@ -225,8 +227,10 @@ private fun FileMasterApp() {
             } catch (_: SecurityException) { }
             browseRootUri = uri
             browseFolder = DocumentFile.fromTreeUri(context, uri)
+            trashMode = false
+            trashReturnFolder = null
             browsePage = 0
-            browseFiles = browseFolder?.listFiles()?.sortedWith(
+            browseFiles = browseFolder?.listFiles()?.filter { it.name != ".FileMasterTrash" }?.sortedWith(
                 compareBy<DocumentFile> { !it.isDirectory }.thenBy { it.name.orEmpty().lowercase() }
             ) ?: emptyList()
             zipSelection = emptySet()
@@ -344,20 +348,61 @@ private fun FileMasterApp() {
                         if (browseFolder != null) {
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 OutlinedButton(onClick = {
-                                    val root = browseFolder
-                                    val parent = root?.parentFile
-                                    if (parent != null) {
-                                        browsePage = 0
-                                        browseFolder = parent
-                                        browseFiles = parent.listFiles().sortedWith(compareBy<DocumentFile> { !it.isDirectory }.thenBy { it.name.orEmpty().lowercase() })
-                                        zipSelection = emptySet()
+                                    if (trashMode) {
+                                        val back = trashReturnFolder
+                                        if (back != null) {
+                                            browseFolder = back
+                                            browseFiles = back.listFiles().filter { it.name != ".FileMasterTrash" }.sortedWith(compareBy<DocumentFile> { !it.isDirectory }.thenBy { it.name.orEmpty().lowercase() })
+                                        }
+                                        trashMode = false
+                                        trashReturnFolder = null
+                                    } else {
+                                        val parent = browseFolder?.parentFile
+                                        if (parent != null) {
+                                            browsePage = 0
+                                            browseFolder = parent
+                                            browseFiles = parent.listFiles().filter { it.name != ".FileMasterTrash" }.sortedWith(compareBy<DocumentFile> { !it.isDirectory }.thenBy { it.name.orEmpty().lowercase() })
+                                            zipSelection = emptySet()
+                                        }
                                     }
-                                }) { Text(tr("المجلد السابق")) }
+                                }) { Text(if (trashMode) tr("العودة من سلة المحذوفات") else tr("المجلد السابق")) }
                                 OutlinedButton(onClick = {
                                     destination = browseRootUri
                                     status = tr("تم تعيين المجلد الرئيسي المختار كوجهة لفك الضغط.")
                                     success = true
                                 }) { Text(tr("استخدام كوجهة")) }
+                                if (!trashMode) OutlinedButton(onClick = {
+                                    val current = browseFolder
+                                    val trash = current?.let { getOrCreateTrashFolder(it) }
+                                    if (trash == null) {
+                                        status = tr("تعذر إنشاء سلة المحذوفات في هذا المجلد.")
+                                        success = false
+                                    } else {
+                                        trashReturnFolder = current
+                                        browseFolder = trash
+                                        browseFiles = trash.listFiles().sortedWith(compareBy<DocumentFile> { !it.isDirectory }.thenBy { it.name.orEmpty().lowercase() })
+                                        trashMode = true
+                                        zipSelection = emptySet()
+                                        browsePage = 0
+                                        status = tr("سلة المحذوفات: حدد العناصر لاستعادتها.")
+                                    }
+                                }) { Text(tr("سلة المحذوفات")) }
+                            }
+                            if (trashMode && zipSelection.isNotEmpty()) {
+                                OutlinedButton(onClick = {
+                                    val target = trashReturnFolder
+                                    val selected = browseFiles.filter { it.uri.toString() in zipSelection }
+                                    if (target == null) {
+                                        status = tr("اختر مجلد الملفات الأصلي أولاً.")
+                                        success = false
+                                    } else {
+                                        val result = restoreFromTrash(context, selected, target)
+                                        status = result
+                                        success = result.startsWith("تمت استعادة")
+                                        browseFiles = browseFolder?.listFiles()?.sortedWith(compareBy<DocumentFile> { !it.isDirectory }.thenBy { it.name.orEmpty().lowercase() }) ?: emptyList()
+                                        zipSelection = emptySet()
+                                    }
+                                }, modifier = Modifier.fillMaxWidth()) { Text(tr("استعادة العناصر المحددة")) }
                             }
                             OutlinedTextField(
                                 value = browseSearch,
@@ -379,7 +424,7 @@ private fun FileMasterApp() {
                             val folderBytes = browseFiles.sumOf { it.length().coerceAtLeast(0L) }
                             Card(colors = CardDefaults.cardColors(containerColor = Ink), shape = RoundedCornerShape(16.dp)) {
                                 Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                    Text("Folder overview", fontWeight = FontWeight.Bold, color = Accent)
+                                    Text(if (trashMode) tr("سلة المحذوفات") else tr("محتويات المجلد"), fontWeight = FontWeight.Bold, color = Accent)
                                     Text("${browseFiles.size} items • ${formatFileSize(folderBytes)}", color = Muted, style = MaterialTheme.typography.bodySmall)
                                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                         FilterChip(selected = favoritesOnly, onClick = { favoritesOnly = !favoritesOnly; imagesOnly = false; browsePage = 0 }, label = { Text("Favorites") })
@@ -590,15 +635,22 @@ private fun FileMasterApp() {
             AlertDialog(
                 onDismissRequest = { managerDialog = "" },
                 title = { Text(tr("حذف العناصر المحددة؟")) },
-                text = { Text(tr("سيتم حذف ") + zipSelection.size + tr(" عنصر. قد لا يمكن التراجع عن ذلك.")) },
+                text = { Text(if (trashMode) tr("سيتم حذف العناصر المحددة نهائياً.") else tr("ستنقل العناصر المحددة إلى سلة المحذوفات ويمكن استعادتها لاحقاً.")) },
                 confirmButton = {
                     TextButton(onClick = {
                         val targets = browseFiles.filter { it.uri.toString() in zipSelection }
-                        val removed = targets.count { it.delete() }
-                        status = tr("تم حذف ") + removed + tr(" من ") + targets.size + tr(" عنصر.")
+                        val result = if (trashMode) {
+                            val removed = targets.count { it.delete() }
+                            tr("حُذف نهائياً ") + removed + tr(" من ") + targets.size + tr(" عنصر.")
+                        } else {
+                            val trash = browseFolder?.let { getOrCreateTrashFolder(it) }
+                            if (trash == null) tr("تعذر إنشاء سلة المحذوفات؛ لم تُحذف الملفات.") else moveToTrash(context, targets, trash)
+                        }
+                        status = result
+                        success = result.startsWith("نُقلت العناصر إلى سلة المحذوفات") || result.startsWith("حُذف نهائياً")
                         managerDialog = ""
                         zipSelection = emptySet()
-                        browseFiles = browseFolder?.listFiles()?.sortedWith(compareBy<DocumentFile> { !it.isDirectory }.thenBy { it.name.orEmpty().lowercase() }) ?: emptyList()
+                        browseFiles = browseFolder?.listFiles()?.filter { trashMode || it.name != ".FileMasterTrash" }?.sortedWith(compareBy<DocumentFile> { !it.isDirectory }.thenBy { it.name.orEmpty().lowercase() }) ?: emptyList()
                     }) { Text(tr("حذف")) }
                 },
                 dismissButton = { TextButton(onClick = { managerDialog = "" }) { Text(tr("إلغاء")) } }
@@ -651,6 +703,82 @@ private fun ActionCard(
             OutlinedButton(onClick = onClick, shape = RoundedCornerShape(14.dp)) { Text(buttonText) }
         }
     }
+}
+
+private fun getOrCreateTrashFolder(parent: DocumentFile): DocumentFile? {
+    val existing = parent.findFile(".FileMasterTrash")
+    if (existing != null) return existing.takeIf { it.isDirectory }
+    return parent.createDirectory(".FileMasterTrash")
+}
+
+private fun uniqueDocumentName(parent: DocumentFile, original: String): String {
+    if (parent.findFile(original) == null) return original
+    val dot = original.lastIndexOf('.')
+    val stem = if (dot > 0) original.substring(0, dot) else original
+    val ext = if (dot > 0) original.substring(dot) else ""
+    var index = 1
+    while (index < 10000) {
+        val candidate = stem + "-restored-" + index + ext
+        if (parent.findFile(candidate) == null) return candidate
+        index++
+    }
+    return System.currentTimeMillis().toString() + "-" + original
+}
+
+private fun moveToTrash(context: android.content.Context, sources: List<DocumentFile>, trash: DocumentFile): String {
+    var moved = 0
+    val errors = mutableListOf<String>()
+    for (source in sources) {
+        var staging: DocumentFile? = null
+        try {
+            val name = uniqueDocumentName(trash, source.name ?: "item")
+            val target = (if (source.isDirectory) trash.createDirectory(name) else trash.createFile("application/octet-stream", name))
+                ?: throw IllegalStateException("تعذر إنشاء عنصر في السلة")
+            staging = target
+            if (source.isDirectory) {
+                for (child in source.listFiles()) copyDocumentTree(context, child, target)
+            } else {
+                context.contentResolver.openInputStream(source.uri)?.use { input ->
+                    context.contentResolver.openOutputStream(target.uri, "w")?.use { output -> input.copyTo(output, 32768) }
+                        ?: throw IllegalStateException("تعذرت الكتابة إلى السلة")
+                } ?: throw IllegalStateException("تعذرت قراءة الملف")
+            }
+            if (!source.delete()) throw IllegalStateException("تعذر حذف المصدر بعد النسخ")
+            moved++
+        } catch (e: Exception) {
+            staging?.delete()
+            errors += (source.name ?: "item") + ": " + (e.localizedMessage ?: "error")
+        }
+    }
+    return if (errors.isEmpty()) "نُقلت العناصر إلى سلة المحذوفات: " + moved else "نُقلت " + moved + " عناصر إلى السلة؛ تعذرت بعض العمليات: " + errors.joinToString("; ")
+}
+
+private fun restoreFromTrash(context: android.content.Context, sources: List<DocumentFile>, destination: DocumentFile): String {
+    var restored = 0
+    val errors = mutableListOf<String>()
+    for (source in sources) {
+        var staging: DocumentFile? = null
+        try {
+            val name = uniqueDocumentName(destination, source.name ?: "restored-item")
+            val target = (if (source.isDirectory) destination.createDirectory(name) else destination.createFile("application/octet-stream", name))
+                ?: throw IllegalStateException("تعذر إنشاء العنصر المستعاد")
+            staging = target
+            if (source.isDirectory) {
+                for (child in source.listFiles()) copyDocumentTree(context, child, target)
+            } else {
+                context.contentResolver.openInputStream(source.uri)?.use { input ->
+                    context.contentResolver.openOutputStream(target.uri, "w")?.use { output -> input.copyTo(output, 32768) }
+                        ?: throw IllegalStateException("تعذرت الكتابة إلى الوجهة")
+                } ?: throw IllegalStateException("تعذرت قراءة العنصر")
+            }
+            if (!source.delete()) throw IllegalStateException("تم النسخ لكن تعذر حذف نسخة السلة")
+            restored++
+        } catch (e: Exception) {
+            staging?.delete()
+            errors += (source.name ?: "item") + ": " + (e.localizedMessage ?: "error")
+        }
+    }
+    return if (errors.isEmpty()) "تمت استعادة " + restored + " عنصر." else "تمت استعادة " + restored + " عناصر؛ أخطاء: " + errors.joinToString("; ")
 }
 
 private fun findDuplicateDocuments(context: android.content.Context, files: List<DocumentFile>): List<DocumentFile> {
