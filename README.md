@@ -11,6 +11,8 @@
 - Copy or move selected items to a user-selected destination.
 - Extract ZIP archives into a user-selected destination, with basic archive path traversal checks and limits on entry count and extracted bytes.
 - Create ZIP archives from selected files and folders.
+- Open supported documents and media using installed Android apps.
+- Custom FileMaster launcher icon and app branding.
 - GitHub Actions workflow to build a debug APK and upload it as an artifact.
 
 ## Important limitations
