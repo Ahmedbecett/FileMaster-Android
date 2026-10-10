@@ -47,7 +47,6 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.google.android.gms.ads.AdRequest
@@ -423,7 +422,7 @@ private fun FileMasterApp() {
         }
     }
 
-    MaterialTheme(typography = Typography(defaultFontFamily = FontFamily.SansSerif), colorScheme = if (darkMode) darkColorScheme(
+    MaterialTheme(colorScheme = if (darkMode) darkColorScheme(
         primary = Accent, onPrimary = Color(0xFF06211E), background = Ink, surface = Panel,
         onSurface = Color(0xFFF1F5F9), secondary = Muted
     ) else lightColorScheme(
