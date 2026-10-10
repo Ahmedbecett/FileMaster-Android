@@ -153,6 +153,7 @@ private fun fileMasterLanguageName(language: String): String = when (language) {
 }
 
 @Composable
+@OptIn(ExperimentalMaterial3Api::class)
 private fun FileMasterApp() {
     val context = androidx.compose.ui.platform.LocalContext.current
     var language by remember { mutableStateOf("ar") }
