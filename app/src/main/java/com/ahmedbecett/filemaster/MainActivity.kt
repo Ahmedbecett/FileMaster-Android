@@ -150,6 +150,7 @@ private val FileMasterExtraTranslations: Map<String, List<String>> = mapOf(
     "تعذرت معاينة الصورة." to listOf("Could not preview image.", "Impossible d’afficher l’aperçu.", "ⵓⵔ ⵉⵣⵎⵉⵔ ⴰⴷ ⵉⵙⵎⵓⵔⵔⵉ ⵜⴰⵡⵍⴰⴼⵜ"),
     "اختر أرشيفاً أولاً." to listOf("Choose an archive first.", "Choisissez d’abord une archive.", "ⴼⵔⵏ ⴰⵔⵛⵉⴼ ⴷⴰⵜ"),
     "اختيار أرشيف" to listOf("Choose archive", "Choisir une archive", "ⴼⵔⵏ ⴰⵔⵛⵉⴼ"),
+    "معاينة محتويات الأرشيف" to listOf("Preview archive contents", "Aperçu du contenu de l’archive", "ⵙⵎⵓⵔⵔⵉ ⵉⴳⴱⵔⴰⵏ ⵏ ⵜⴰⵔⵛⵉⴼⵜ"),
     "اختر أرشيف ZIP للبدء." to listOf("Choose a ZIP archive to begin.", "Choisissez une archive ZIP pour commencer.", "ⴼⵔⵏ ⴰⵔⵛⵉⴼ ZIP ⵉ ⵓⴱⴷⵓ."),
     "تم اختيار الأرشيف. اختر مجلد الحفظ لفك الضغط." to listOf("Archive selected. Choose a destination folder.", "Archive sélectionnée. Choisissez un dossier de destination.", "ⵜⵜⵓⴼⵔⵏ ⴰⵔⵛⵉⴼ. ⴼⵔⵏ ⴰⴽⴰⵔⵏ."),
     "تم اختيار مجلد الحفظ. اضغط «فك الضغط الآن»." to listOf("Destination selected. Tap “Extract now”.", "Destination sélectionnée. Appuyez sur « Extraire maintenant ».", "ⵜⵜⵓⴼⵔⵏ ⴰⴽⴰⵔⵏ. ⵙⵎⵓⵔⵔⵉ ⵜⵓⵔⴰ."),
