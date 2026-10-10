@@ -169,6 +169,8 @@ private fun FileMasterApp() {
     var recentUris by remember { mutableStateOf(preferences.getString("recent", "")?.split("\n")?.filter { it.isNotBlank() } ?: emptyList()) }
     var favoritesOnly by remember { mutableStateOf(false) }
     var imagesOnly by remember { mutableStateOf(false) }
+    var recentOnly by remember { mutableStateOf(false) }
+    var largeOnly by remember { mutableStateOf(false) }
     var languageMenuOpen by remember { mutableStateOf(false) }
     fun tr(text: String): String = fileMasterText(text, language)
     val scope = rememberCoroutineScope()
@@ -370,7 +372,9 @@ private fun FileMasterApp() {
                                 val name = file.name.orEmpty()
                                 name.contains(browseSearch, ignoreCase = true) &&
                                     (!favoritesOnly || file.uri.toString() in favoriteUris) &&
-                                    (!imagesOnly || name.substringAfterLast(".", "").lowercase() in setOf("jpg", "jpeg", "png", "gif", "webp", "bmp", "heic"))
+                                    (!imagesOnly || name.substringAfterLast(".", "").lowercase() in setOf("jpg", "jpeg", "png", "gif", "webp", "bmp", "heic")) &&
+                                    (!recentOnly || file.uri.toString() in recentUris) &&
+                                    (!largeOnly || (!file.isDirectory && file.length() >= 10L * 1024L * 1024L))
                             }
                             val folderBytes = browseFiles.sumOf { it.length().coerceAtLeast(0L) }
                             Card(colors = CardDefaults.cardColors(containerColor = Ink), shape = RoundedCornerShape(16.dp)) {
@@ -379,8 +383,10 @@ private fun FileMasterApp() {
                                     Text("${browseFiles.size} items • ${formatFileSize(folderBytes)}", color = Muted, style = MaterialTheme.typography.bodySmall)
                                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                         FilterChip(selected = favoritesOnly, onClick = { favoritesOnly = !favoritesOnly; imagesOnly = false; browsePage = 0 }, label = { Text("Favorites") })
-                                        FilterChip(selected = imagesOnly, onClick = { imagesOnly = !imagesOnly; favoritesOnly = false; browsePage = 0 }, label = { Text("Images") })
-                                        TextButton(onClick = { favoritesOnly = false; imagesOnly = false; browseSearch = ""; browsePage = 0 }) { Text("All") }
+                                        FilterChip(selected = imagesOnly, onClick = { imagesOnly = !imagesOnly; favoritesOnly = false; recentOnly = false; largeOnly = false; browsePage = 0 }, label = { Text("Images") })
+                                        FilterChip(selected = recentOnly, onClick = { recentOnly = !recentOnly; favoritesOnly = false; imagesOnly = false; largeOnly = false; browsePage = 0 }, label = { Text("Recent") })
+                                        FilterChip(selected = largeOnly, onClick = { largeOnly = !largeOnly; favoritesOnly = false; imagesOnly = false; recentOnly = false; browsePage = 0 }, label = { Text("10 MB+") })
+                                        TextButton(onClick = { favoritesOnly = false; imagesOnly = false; recentOnly = false; largeOnly = false; browseSearch = ""; browsePage = 0 }) { Text("All") }
                                     }
                                     if (recentUris.isNotEmpty()) Text("Recently opened: ${recentUris.size}", color = Muted, style = MaterialTheme.typography.labelSmall)
                                 }
@@ -457,6 +463,21 @@ private fun FileMasterApp() {
                                     }, modifier = Modifier.weight(1f)) { Text(tr("إعادة تسمية")) }
                                     OutlinedButton(onClick = { managerDialog = "delete" }, modifier = Modifier.weight(1f)) { Text(tr("حذف")) }
                                 }
+                                OutlinedButton(
+                                    onClick = {
+                                        busy = true
+                                        status = "Scanning selected folder for duplicate files…"
+                                        val candidates = browseFiles.filter { !it.isDirectory }
+                                        scope.launch {
+                                            val duplicates = withContext(Dispatchers.IO) { findDuplicateDocuments(context, candidates) }
+                                            busy = false
+                                            status = if (duplicates.isEmpty()) "No duplicate files found in this folder." else "Possible duplicates found: " + duplicates.joinToString(", ") { it.name ?: "file" }
+                                            success = duplicates.isEmpty()
+                                        }
+                                    },
+                                    enabled = !busy,
+                                    modifier = Modifier.fillMaxWidth()
+                                ) { Text("Scan current folder for duplicates") }
                                 Row(horizontalArrangement = Arrangement.spacedBy(5.dp), modifier = Modifier.fillMaxWidth()) {
                                     OutlinedButton(onClick = { moveOperation = false; operationDestinationPicker.launch(null) }, modifier = Modifier.weight(1f)) { Icon(Icons.Default.ContentCopy, null); Text(tr("نسخ")) }
                                     OutlinedButton(onClick = { moveOperation = true; operationDestinationPicker.launch(null) }, modifier = Modifier.weight(1f)) { Icon(Icons.Default.DriveFileMove, null); Text(tr("نقل")) }
@@ -630,6 +651,28 @@ private fun ActionCard(
             OutlinedButton(onClick = onClick, shape = RoundedCornerShape(14.dp)) { Text(buttonText) }
         }
     }
+}
+
+private fun findDuplicateDocuments(context: android.content.Context, files: List<DocumentFile>): List<DocumentFile> {
+    val duplicates = mutableListOf<DocumentFile>()
+    val byLength = files.filter { it.length() > 0L }.groupBy { it.length() }
+    for (group in byLength.values.filter { it.size > 1 }) {
+        val seen = mutableMapOf<String, DocumentFile>()
+        for (file in group) {
+            val digest = java.security.MessageDigest.getInstance("SHA-256")
+            context.contentResolver.openInputStream(file.uri)?.use { input ->
+                val buffer = ByteArray(32 * 1024)
+                while (true) {
+                    val count = input.read(buffer)
+                    if (count < 0) break
+                    digest.update(buffer, 0, count)
+                }
+            } ?: continue
+            val hash = digest.digest().joinToString("") { "%02x".format(it) }
+            if (seen.containsKey(hash)) duplicates += file else seen[hash] = file
+        }
+    }
+    return duplicates
 }
 
 private fun formatFileSize(bytes: Long): String {
