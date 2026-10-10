@@ -13,7 +13,7 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 35
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
@@ -29,22 +29,12 @@ jobs:
         with:
           gradle-version: '8.11.1'
 
-      # v4 no longer requests Google's removed "tools" SDK package.
       - name: Set up Android SDK
         uses: android-actions/setup-android@v4
         with:
           packages: 'platform-tools'
           accept-android-sdk-licenses: true
           log-accepted-android-sdk-licenses: false
-
-      - name: Verify Android SDK
-        shell: bash
-        run: |
-          set -euo pipefail
-          echo "ANDROID_HOME=${ANDROID_HOME:-unset}"
-          echo "ANDROID_SDK_ROOT=${ANDROID_SDK_ROOT:-unset}"
-          command -v sdkmanager
-          sdkmanager --version
 
       - name: Install required Android SDK packages
         shell: bash
@@ -60,29 +50,72 @@ jobs:
       - name: Build debug APK
         run: gradle --no-daemon assembleDebug --stacktrace
 
-      - name: Verify APK exists
-        if: success()
+      - name: Verify debug APK exists
         run: test -s app/build/outputs/apk/debug/app-debug.apk
 
-      - name: Upload APK
-        if: success()
+      - name: Upload debug APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: FileMaster-debug-apk
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
 
-      - name: Publish permanent GitHub Release download
+      - name: Publish development APK (not production)
         if: success() && github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v0.1.0-dev.${{ github.run_number }}
+          tag_name: v1.1.0-dev.${{ github.run_number }}
           name: FileMaster Development Build ${{ github.run_number }}
           body: |
-            Development/debug APK for FileMaster by Ahmedbecett.
+            Development/debug APK for FileMaster by Ahmedbecetti.
 
-            **Work in progress:** This is a development build, not a production release. Test carefully and back up important files.
+            This is a debug build for testing, not a production release. The production release is published only after the signed APK passes verification.
           files: app/build/outputs/apk/debug/app-debug.apk
+          prerelease: true
+          make_latest: false
+
+      - name: Build and verify signed production APK
+        if: success() && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          FILEMASTER_KEYSTORE_BASE64: ${{ secrets.FILEMASTER_KEYSTORE_BASE64 }}
+          FILEMASTER_STORE_PASSWORD: ${{ secrets.FILEMASTER_STORE_PASSWORD }}
+          FILEMASTER_KEY_ALIAS: ${{ secrets.FILEMASTER_KEY_ALIAS }}
+          FILEMASTER_KEY_PASSWORD: ${{ secrets.FILEMASTER_KEY_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "${FILEMASTER_KEYSTORE_BASE64}" || -z "${FILEMASTER_STORE_PASSWORD}" || -z "${FILEMASTER_KEY_ALIAS}" || -z "${FILEMASTER_KEY_PASSWORD}" ]]; then
+            echo "::warning::Signed production release skipped. Configure FILEMASTER_KEYSTORE_BASE64, FILEMASTER_STORE_PASSWORD, FILEMASTER_KEY_ALIAS, and FILEMASTER_KEY_PASSWORD in repository Actions secrets."
+            exit 0
+          fi
+          trap 'rm -f app/filemaster-release.jks' EXIT
+          printf '%s' "$FILEMASTER_KEYSTORE_BASE64" | base64 --decode > app/filemaster-release.jks
+          test -s app/filemaster-release.jks
+          gradle --no-daemon assembleRelease --stacktrace
+          APK="app/build/outputs/apk/release/app-release.apk"
+          test -s "$APK"
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs "$APK"
+          sha256sum "$APK"
+
+      - name: Upload verified signed APK artifact
+        if: success() && hashFiles('app/build/outputs/apk/release/app-release.apk') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: FileMaster-signed-release-apk
+          path: app/build/outputs/apk/release/app-release.apk
+          if-no-files-found: error
+
+      - name: Publish signed production release
+        if: success() && github.event_name == 'push' && github.ref == 'refs/heads/main' && hashFiles('app/build/outputs/apk/release/app-release.apk') != ''
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.1.0
+          name: FileMaster 1.1.0 — Signed Release
+          body: |
+            FileMaster 1.1.0 signed production APK by Ahmedbecetti.
+
+            The APK is built from the release variant and verified with Android apksigner before publication. Keep the signing key and its passwords private and backed up securely.
+          files: app/build/outputs/apk/release/app-release.apk
           prerelease: false
           make_latest: true
 
