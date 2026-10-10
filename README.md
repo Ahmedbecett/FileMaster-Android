@@ -26,6 +26,13 @@ The link downloads the APK directly from the latest GitHub Release. After downlo
 - **Android-native app:** Kotlin + Jetpack Compose, with FileMaster branding and launcher icon.
 - **Automated builds:** GitHub Actions builds a debug APK and publishes it as an artifact.
 
+## Advertising (Google AdMob)
+
+- Google Mobile Ads SDK is integrated with a banner placement in the app.
+- AdMob app ID: configured in `AndroidManifest.xml`.
+- Banner ad unit: configured in the app's Compose UI.
+- Ads require internet access and may not appear until the AdMob account, app, and ad unit are approved and serving. Follow Google's consent and privacy requirements for your audience and region.
+
 ## Limitations and development status
 
 - **ZIP only:** RAR, 7z, TAR and GZIP are not implemented yet.
