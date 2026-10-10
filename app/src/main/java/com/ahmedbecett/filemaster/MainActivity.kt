@@ -62,6 +62,7 @@ private fun FileMasterApp() {
     var browseRootUri by remember { mutableStateOf<Uri?>(null) }
     var browseFiles by remember { mutableStateOf<List<DocumentFile>>(emptyList()) }
     var zipSelection by remember { mutableStateOf(setOf<String>()) }
+    var browsePage by remember { mutableIntStateOf(0) }
     var zipSources by remember { mutableStateOf<List<DocumentFile>>(emptyList()) }
     var managerDialog by remember { mutableStateOf("") }
     var managerName by remember { mutableStateOf("") }
@@ -101,6 +102,7 @@ private fun FileMasterApp() {
             } catch (_: SecurityException) { }
             browseRootUri = uri
             browseFolder = DocumentFile.fromTreeUri(context, uri)
+            browsePage = 0
             browseFiles = browseFolder?.listFiles()?.sortedWith(
                 compareBy<DocumentFile> { !it.isDirectory }.thenBy { it.name.orEmpty().lowercase() }
             ) ?: emptyList()
@@ -223,8 +225,9 @@ private fun FileMasterApp() {
                             }
                             if (browseFiles.isEmpty()) {
                                 Text("المجلد فارغ", color = Muted, style = MaterialTheme.typography.bodySmall)
+                                OutlinedButton(onClick = { managerName = ""; managerDialog = "mkdir" }, modifier = Modifier.fillMaxWidth()) { Text("إنشاء مجلد هنا") }
                             } else {
-                                browseFiles.take(8).forEach { file ->
+                                browseFiles.drop(browsePage * 8).take(8).forEach { file ->
                                     Row(
                                         modifier = Modifier.fillMaxWidth().clickable {
                                             if (file.isDirectory) {
@@ -250,7 +253,13 @@ private fun FileMasterApp() {
                                         )
                                     }
                                 }
-                                if (browseFiles.size > 8) Text("يعرض أول 8 عناصر؛ ادخل إلى المجلد لرؤية بقية الملفات.", color = Muted, style = MaterialTheme.typography.labelSmall)
+                                if (browseFiles.size > 8) {
+                                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                        TextButton(enabled = browsePage > 0, onClick = { browsePage-- }) { Text("السابق") }
+                                        Text((browsePage + 1).toString() + " / " + ((browseFiles.size + 7) / 8).toString(), color = Muted)
+                                        TextButton(enabled = (browsePage + 1) * 8 < browseFiles.size, onClick = { browsePage++ }) { Text("التالي") }
+                                    }
+                                }
                                 Row(horizontalArrangement = Arrangement.spacedBy(5.dp), modifier = Modifier.fillMaxWidth()) {
                                     OutlinedButton(onClick = { managerName = ""; managerDialog = "mkdir" }, modifier = Modifier.weight(1f)) { Text("مجلد جديد") }
                                     OutlinedButton(onClick = {
