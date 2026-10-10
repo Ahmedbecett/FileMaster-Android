@@ -308,6 +308,7 @@ private fun FileMasterApp() {
     fun tr(text: String): String = fileMasterText(text, language)
     val scope = rememberCoroutineScope()
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
+    val homeScrollState = rememberScrollState()
     var selectedZip by remember { mutableStateOf<Uri?>(null) }
     var selectedName by remember { mutableStateOf<String?>(null) }
     var destination by remember { mutableStateOf<Uri?>(null) }
@@ -473,7 +474,7 @@ private fun FileMasterApp() {
                         }
                         Spacer(Modifier.height(8.dp))
                         NavigationDrawerItem(icon = { Icon(Icons.Default.FolderOpen, null) }, label = { Text("مستكشف الملفات") }, selected = false, onClick = { scope.launch { drawerState.close() } })
-                        NavigationDrawerItem(icon = { Icon(Icons.Default.Memory, null) }, label = { Text("صحة الهاتف والفحص") }, selected = false, onClick = { scope.launch { drawerState.close() }; deviceInfoOpen = true })
+                        NavigationDrawerItem(icon = { Icon(Icons.Default.Memory, null) }, label = { Text("صحة الهاتف والفحص") }, selected = false, onClick = { scope.launch { drawerState.close(); homeScrollState.animateScrollTo(0) } })
                         NavigationDrawerItem(icon = { Icon(Icons.Default.Settings, null) }, label = { Text("الإعدادات واللغة") }, selected = false, onClick = { scope.launch { drawerState.close() }; settingsOpen = true })
                         NavigationDrawerItem(icon = { Icon(Icons.Default.Info, null) }, label = { Text("الخصوصية") }, selected = false, onClick = { scope.launch { drawerState.close() }; privacyOpen = true })
                         Spacer(Modifier.height(10.dp))
@@ -509,7 +510,7 @@ private fun FileMasterApp() {
             }
         ) { padding ->
             Column(
-                modifier = Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(horizontal = 20.dp),
+                modifier = Modifier.fillMaxSize().padding(padding).verticalScroll(homeScrollState).padding(horizontal = 20.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 AdMobBanner(modifier = Modifier.fillMaxWidth())
