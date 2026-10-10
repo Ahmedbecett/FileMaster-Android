@@ -6,7 +6,7 @@
 
 - Arabic-first dark interface.
 - Android Storage Access Framework folder picker, scoped to folders the user chooses.
-- Browse folders and files, search within the displayed folder, and view file sizes.
+- Browse folders and files, search within the selected folder, paginate through large folders, and view file sizes.
 - Create folders, rename items, and delete selected items.
 - Copy or move selected items to a user-selected destination.
 - Extract ZIP archives into a user-selected destination, with basic archive path traversal checks and limits on entry count and extracted bytes.
