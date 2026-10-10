@@ -57,6 +57,7 @@ private fun FileMasterApp() {
     var status by remember { mutableStateOf("اختر أرشيف ZIP للبدء.") }
     var success by remember { mutableStateOf(false) }
     var browseFolder by remember { mutableStateOf<DocumentFile?>(null) }
+    var browseRootUri by remember { mutableStateOf<Uri?>(null) }
     var browseFiles by remember { mutableStateOf<List<DocumentFile>>(emptyList()) }
     var zipSelection by remember { mutableStateOf(setOf<String>()) }
     var zipSources by remember { mutableStateOf<List<DocumentFile>>(emptyList()) }
@@ -93,6 +94,7 @@ private fun FileMasterApp() {
                     uri, Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
                 )
             } catch (_: SecurityException) { }
+            browseRootUri = uri
             browseFolder = DocumentFile.fromTreeUri(context, uri)
             browseFiles = browseFolder?.listFiles()?.sortedWith(
                 compareBy<DocumentFile> { !it.isDirectory }.thenBy { it.name.orEmpty().lowercase() }
@@ -190,8 +192,8 @@ private fun FileMasterApp() {
                                     }
                                 }) { Text("المجلد السابق") }
                                 OutlinedButton(onClick = {
-                                    destination = browseFolder?.uri
-                                    status = "تم تعيين مجلد التصفح كوجهة لفك الضغط."
+                                    destination = browseRootUri
+                                    status = "تم تعيين المجلد الرئيسي المختار كوجهة لفك الضغط."
                                     success = true
                                 }) { Text("استخدام كوجهة") }
                             }
