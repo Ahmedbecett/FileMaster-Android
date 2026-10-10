@@ -212,6 +212,7 @@ private fun FileMasterApp() {
                                     val root = browseFolder
                                     val parent = root?.parentFile
                                     if (parent != null) {
+                                        browsePage = 0
                                         browseFolder = parent
                                         browseFiles = parent.listFiles().sortedWith(compareBy<DocumentFile> { !it.isDirectory }.thenBy { it.name.orEmpty().lowercase() })
                                         zipSelection = emptySet()
@@ -231,6 +232,7 @@ private fun FileMasterApp() {
                                     Row(
                                         modifier = Modifier.fillMaxWidth().clickable {
                                             if (file.isDirectory) {
+                                                browsePage = 0
                                                 browseFolder = file
                                                 browseFiles = file.listFiles().sortedWith(compareBy<DocumentFile> { !it.isDirectory }.thenBy { it.name.orEmpty().lowercase() })
                                                 zipSelection = emptySet()
