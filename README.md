@@ -27,6 +27,7 @@ The link downloads the APK directly from the latest GitHub Release. After downlo
 - **Folder management:** Create folders, rename items, and delete selected items.
 - **Copy and move:** Copy or move selected items to a user-selected destination.
 - **Multi-format archive extraction:** Extract ZIP, 7Z, RAR, TAR, TAR.GZ/TGZ and single-file GZIP archives, with path checks and entry/expanded-size limits. Extraction needs testing against real archives and Android document providers.
+- **Archive preview:** List archive entries before extraction (up to the first 100 displayed), plus existing ZIP archive creation.
 - **ZIP creation:** Create ZIP archives from selected files and folders.
 - **Open files:** Open supported documents and media using compatible apps installed on Android.
 - **In-app image preview:** Preview JPG, JPEG, PNG, WebP, BMP and GIF still frames inside the app.
