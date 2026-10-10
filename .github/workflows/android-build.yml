@@ -119,6 +119,42 @@ jobs:
           prerelease: false
           make_latest: true
 
+      # If production secrets are not configured, still produce an unsigned release
+      # candidate and the official Android signer so the maintainer can sign locally
+      # without exposing the private keystore in this public repository.
+      - name: Build unsigned production APK for local signing
+        if: success() && github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && hashFiles('app/build/outputs/apk/release/app-release.apk') == ''
+        run: |
+          set -euo pipefail
+          gradle --no-daemon assembleRelease --stacktrace
+          test -s app/build/outputs/apk/release/app-release-unsigned.apk
+
+      - name: Upload unsigned production APK for local signing
+        if: success() && hashFiles('app/build/outputs/apk/release/app-release-unsigned.apk') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: FileMaster-release-unsigned-apk
+          path: app/build/outputs/apk/release/app-release-unsigned.apk
+          if-no-files-found: error
+
+      - name: Package Android apksigner for local signing
+        if: success() && hashFiles('app/build/outputs/apk/release/app-release-unsigned.apk') != ''
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/filemaster-apksigner/lib
+          cp "$ANDROID_HOME/build-tools/35.0.0/apksigner" /tmp/filemaster-apksigner/apksigner
+          cp "$ANDROID_HOME/build-tools/35.0.0/lib/apksigner.jar" /tmp/filemaster-apksigner/lib/apksigner.jar
+          chmod +x /tmp/filemaster-apksigner/apksigner
+
+      - name: Upload Android apksigner tool
+        if: success() && hashFiles('app/build/outputs/apk/release/app-release-unsigned.apk') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: FileMaster-apksigner-tool
+          path: /tmp/filemaster-apksigner/
+          if-no-files-found: error
+
       - name: Upload build reports for diagnosis
         if: always()
         uses: actions/upload-artifact@v4
