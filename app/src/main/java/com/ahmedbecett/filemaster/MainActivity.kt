@@ -228,6 +228,9 @@ private fun FileMasterApp() {
     var isLocked by remember { mutableStateOf(privacyPinHash != null) }
     var pinEntry by remember { mutableStateOf("") }
     var pinError by remember { mutableStateOf("") }
+    var lanServer by remember { mutableStateOf<LocalFileShareServer?>(null) }
+    var lanShareUrl by remember { mutableStateOf("") }
+    DisposableEffect(lanServer) { onDispose { lanServer?.close() } }
     var privacyPinHash by remember { mutableStateOf(preferences.getString("privacy_pin_hash", null)) }
     var isLocked by remember { mutableStateOf(privacyPinHash != null) }
     var pinEntry by remember { mutableStateOf("") }
@@ -640,6 +643,39 @@ private fun FileMasterApp() {
                                 } catch (e: Exception) { status = "تعذر فتح قائمة المشاركة: " + (e.localizedMessage ?: "خطأ"); success = false }
                             }
                         }, modifier = Modifier.fillMaxWidth()) { Icon(Icons.Default.Share, contentDescription = null); Spacer(Modifier.width(8.dp)); Text("إرسال الملفات عبر تطبيقات المشاركة") }
+                        if (lanShareUrl.isNotBlank()) {
+                            Text("رابط LAN: " + lanShareUrl, color = Accent, style = MaterialTheme.typography.bodySmall)
+                            Text("أي جهاز على الشبكة المحلية يملك الرابط يمكنه تنزيل الملفات المحددة. أوقف المشاركة بعد الانتهاء.", color = Muted, style = MaterialTheme.typography.bodySmall)
+                        }
+                        OutlinedButton(onClick = {
+                            if (lanServer != null) {
+                                lanServer?.close()
+                                lanServer = null
+                                lanShareUrl = ""
+                                status = "تم إيقاف مشاركة الشبكة المحلية."
+                                success = true
+                            } else {
+                                val selected = browseFiles.filter { it.uri.toString() in zipSelection && !it.isDirectory }
+                                if (selected.isEmpty()) {
+                                    status = "حدد ملفاً واحداً على الأقل أولاً."
+                                    success = false
+                                } else {
+                                    try {
+                                        val server = LocalFileShareServer(context, selected)
+                                        lanServer = server
+                                        lanShareUrl = server.url
+                                        scope.launch(Dispatchers.IO) { server.serve() }
+                                        status = "بدأت مشاركة الملفات على الشبكة المحلية: " + server.url
+                                        success = true
+                                    } catch (e: Exception) {
+                                        status = "تعذر بدء مشاركة الشبكة المحلية: " + (e.localizedMessage ?: "خطأ")
+                                        success = false
+                                    }
+                                }
+                            }
+                        }, modifier = Modifier.fillMaxWidth()) {
+                            Text(if (lanServer == null) "مشاركة الملفات عبر الشبكة المحلية" else "إيقاف مشاركة الشبكة المحلية")
+                        }
                     }
                 }
                 
