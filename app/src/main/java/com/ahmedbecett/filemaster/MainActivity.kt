@@ -1,6 +1,8 @@
 package com.ahmedbecett.filemaster
 
 import android.content.Intent
+import android.content.ActivityNotFoundException
+import android.webkit.MimeTypeMap
 import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -237,10 +239,27 @@ private fun FileMasterApp() {
                                                 browseFiles = file.listFiles().sortedWith(compareBy<DocumentFile> { !it.isDirectory }.thenBy { it.name.orEmpty().lowercase() })
                                                 zipSelection = emptySet()
                                             } else {
-                                                selectedZip = file.uri
-                                                selectedName = file.name
-                                                status = "تم اختيار " + (file.name ?: "الملف") + ". إذا كان ZIP يمكنك فك ضغطه."
-                                                success = true
+                                                val fileName = file.name ?: "file"
+                                                if (fileName.lowercase().endsWith(".zip")) {
+                                                    selectedZip = file.uri
+                                                    selectedName = fileName
+                                                    status = "تم اختيار " + fileName + ". استخدم زر فك الضغط لاستخراجه."
+                                                    success = true
+                                                } else {
+                                                    val extension = fileName.substringAfterLast('.', "").lowercase()
+                                                    val mime = MimeTypeMap.getSingleton().getMimeTypeFromExtension(extension) ?: "*/*"
+                                                    try {
+                                                        context.startActivity(Intent(Intent.ACTION_VIEW).setDataAndType(file.uri, mime).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION))
+                                                        status = "تم فتح " + fileName + " باستخدام التطبيق المناسب."
+                                                        success = true
+                                                    } catch (_: ActivityNotFoundException) {
+                                                        status = "لا يوجد تطبيق مثبت لفتح هذا النوع من الملفات."
+                                                        success = false
+                                                    } catch (e: Exception) {
+                                                        status = "تعذر فتح الملف: " + (e.localizedMessage ?: "خطأ غير معروف")
+                                                        success = false
+                                                    }
+                                                }
                                             }
                                         }.padding(vertical = 5.dp),
                                         verticalAlignment = Alignment.CenterVertically
