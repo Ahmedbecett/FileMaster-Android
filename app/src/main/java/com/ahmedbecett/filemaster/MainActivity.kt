@@ -105,6 +105,22 @@ private val FileMasterTranslations: Map<String, List<String>> = mapOf(
 )
 
 private val FileMasterExtraTranslations: Map<String, List<String>> = mapOf(
+    "سلة المحذوفات" to listOf("Trash", "Corbeille", "ⴰⴽⴰⵔⵏ ⵏ ⵉⵜⵜⵓⴽⴽⵙⵏ"),
+    "العودة من سلة المحذوفات" to listOf("Back from trash", "Retour de la corbeille", "ⵓⵖⴰⵍ ⵙⴳ ⵜⴽⵓⵔⴱⵉⵍⵜ"),
+    "استعادة العناصر المحددة" to listOf("Restore selected items", "Restaurer les éléments sélectionnés", "ⵙⵎⵓⵔⵔⵉ ⵉⵙⵖⵓⵏ ⵉⵜⵜⵓⴼⵔⵏ"),
+    "محتويات المجلد" to listOf("Folder contents", "Contenu du dossier", "ⵉⴳⴱⵔⴰⵏ ⵏ ⵓⴽⴰⵔⵏ"),
+    "ستنقل العناصر المحددة إلى سلة المحذوفات ويمكن استعادتها لاحقاً." to listOf("Selected items will be moved to Trash and can be restored later.", "Les éléments sélectionnés seront déplacés vers la corbeille et pourront être restaurés.", "ⴰⴷ ⵜⵜⵓⵙⵉⵡⴹⵏ ⵉⵙⵖⵓⵏ ⵙ ⵜⴽⵓⵔⴱⵉⵍⵜ."),
+    "سيتم حذف العناصر المحددة نهائياً." to listOf("Selected items will be permanently deleted.", "Les éléments sélectionnés seront supprimés définitivement.", "ⴰⴷ ⵜⵜⵓⴽⴽⵙⵏ ⵉⵙⵖⵓⵏ ⴰⴽⴽⵯ."),
+    "تعذر إنشاء سلة المحذوفات؛ لم تُحذف الملفات." to listOf("Could not create Trash; no files were deleted.", "Impossible de créer la corbeille ; aucun fichier n’a été supprimé.", "ⵓⵔ ⵉⵣⵎⵉⵔ ⴰⴷ ⵉⵙⵏⵓⵍⴼⵓ ⵜⴰⴽⵓⵔⴱⵉⵍⵜ."),
+    "تعذر إنشاء سلة المحذوفات في هذا المجلد." to listOf("Could not create Trash in this folder.", "Impossible de créer la corbeille dans ce dossier.", "ⵓⵔ ⵉⵣⵎⵉⵔ ⴰⴷ ⵉⵙⵏⵓⵍⴼⵓ ⵜⴰⴽⵓⵔⴱⵉⵍⵜ."),
+    "سلة المحذوفات: حدد العناصر لاستعادتها." to listOf("Trash: select items to restore.", "Corbeille : sélectionnez les éléments à restaurer.", "ⵜⴰⴽⵓⵔⴱⵉⵍⵜ: ⴼⵔⵏ ⵉⵙⵖⵓⵏ ⵉ ⵓⵙⵎⵓⵔⵔⵉ."),
+    "اختر مجلد الملفات الأصلي أولاً." to listOf("Select the original folder first.", "Sélectionnez d’abord le dossier d’origine.", "ⴼⵔⵏ ⴰⴽⴰⵔⵏ ⴰⵎⵣⵡⴰⵔⵓ."),
+    "نُقلت العناصر إلى سلة المحذوفات: " to listOf("Moved to Trash: ", "Déplacé vers la corbeille : ", "ⵉⵜⵜⵓⵙⵉⵡⴹ ⵙ ⵜⴽⵓⵔⴱⵉⵍⵜ: "),
+    "حُذف نهائياً " to listOf("Permanently deleted ", "Supprimé définitivement ", "ⵉⵜⵜⵓⴽⴽⵙ ⴰⴽⴽⵯ "),
+    "تمت استعادة " to listOf("Restored ", "Restauré ", "ⵉⵜⵜⵓⵙⵎⵓⵔⵔⵉ "),
+    "تم فتح المعاينة: " to listOf("Preview opened: ", "Aperçu ouvert : ", "ⵉⵜⵜⵓⵍⴷⵉ ⵓⵙⵎⵓⵔⵔⵉ: "),
+    "تعذرت معاينة الصورة." to listOf("Could not preview image.", "Impossible d’afficher l’aperçu de l’image.", "ⵓⵔ ⵉⵣⵎⵉⵔ ⴰⴷ ⵉⵙⵎⵓⵔⵔⵉ ⵜⴰⵡⵍⴰⴼⵜ."),
+    "إغلاق المعاينة" to listOf("Close preview", "Fermer l’aperçu", "ⵎⴷⵍ ⵜⴰⵙⵎⵓⵔⵔⵉ"),
     "اختر أرشيف ZIP للبدء." to listOf("Choose a ZIP archive to begin.", "Choisissez une archive ZIP pour commencer.", "ⴼⵔⵏ ⴰⵔⵛⵉⴼ ZIP ⵉ ⵓⴱⴷⵓ."),
     "تم اختيار الأرشيف. اختر مجلد الحفظ لفك الضغط." to listOf("Archive selected. Choose a destination folder.", "Archive sélectionnée. Choisissez un dossier de destination.", "ⵜⵜⵓⴼⵔⵏ ⴰⵔⵛⵉⴼ. ⴼⵔⵏ ⴰⴽⴰⵔⵏ."),
     "تم اختيار مجلد الحفظ. اضغط «فك الضغط الآن»." to listOf("Destination selected. Tap “Extract now”.", "Destination sélectionnée. Appuyez sur « Extraire maintenant ».", "ⵜⵜⵓⴼⵔⵏ ⴰⴽⴰⵔⵏ. ⵙⵎⵓⵔⵔⵉ ⵜⵓⵔⴰ."),
