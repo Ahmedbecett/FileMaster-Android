@@ -553,10 +553,10 @@ private fun extractZipSafely(context: android.content.Context, archiveUri: Uri, 
                         throw IllegalStateException("الأرشيف يحتوي على عدد كبير جداً من العناصر.")
                     }
 
-                    val rawName = entry.name.replace('\\\\', '/')
+                    val rawName = entry.name.replace('\\', '/')
                     val parts = rawName.split('/').filter { it.isNotBlank() }
                     if (rawName.startsWith("/") ||
-                        rawName.startsWith("\\\\") ||
+                        rawName.startsWith("\\") ||
                         parts.any { it == ".." || it == "." || it.contains(':') } ||
                         rawName.length > 4096
                     ) {
