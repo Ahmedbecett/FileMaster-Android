@@ -1154,6 +1154,19 @@ private fun copyDocumentTree(context: android.content.Context, source: DocumentF
     }
 }
 
+private fun uniqueArchiveOutputName(parent: DocumentFile, original: String): String {
+    val dot = original.lastIndexOf('.')
+    val stem = if (dot > 0) original.substring(0, dot) else original
+    val extension = if (dot > 0) original.substring(dot) else ""
+    var suffix = 1
+    while (suffix < 10000) {
+        val candidate = stem + "-extracted-" + suffix + extension
+        if (parent.findFile(candidate) == null) return candidate
+        suffix++
+    }
+    return System.currentTimeMillis().toString() + "-" + original
+}
+
 internal fun extractZipSafely(context: android.content.Context, archiveUri: Uri, destinationUri: Uri): String {
     var extractedFiles = 0
     var extractedBytes = 0L
@@ -1210,11 +1223,9 @@ internal fun extractZipSafely(context: android.content.Context, archiveUri: Uri,
                             if (existing?.isDirectory == true) {
                                 throw IllegalStateException("يوجد مجلد بالاسم المطلوب للملف: " + leaf)
                             }
-                            if (existing != null && !existing.delete()) {
-                                throw IllegalStateException("تعذر استبدال الملف: " + leaf)
-                            }
-                            val outputFile = parent.createFile("application/octet-stream", leaf)
-                                ?: throw IllegalStateException("تعذر إنشاء الملف: " + leaf)
+                            val outputName = if (existing == null) leaf else uniqueArchiveOutputName(parent, leaf)
+                            val outputFile = parent.createFile("application/octet-stream", outputName)
+                                ?: throw IllegalStateException("تعذر إنشاء الملف: " + outputName)
                             context.contentResolver.openOutputStream(outputFile.uri, "w")?.use { output ->
                                 val buffer = ByteArray(32 * 1024)
                                 while (true) {
