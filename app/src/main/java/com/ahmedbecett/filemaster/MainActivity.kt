@@ -54,6 +54,55 @@ class MainActivity : ComponentActivity() {
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
+private val FileMasterTranslations: Map<String, List<String>> = mapOf(
+    "مدير الملفات والأرشيفات" to listOf("File & archive manager", "Gestionnaire de fichiers et d’archives", "ⴰⵎⵙⵙⵓⴷⵙ ⵏ ⵉⴼⴰⵢⵍⵓⵜⵏ"),
+    "ملفاتك، تحت سيطرتك" to listOf("Your files, your control", "Vos fichiers, votre contrôle", "ⵉⴼⴰⵢⵍⵓⵜⵏⵏⴽ"),
+    "تصفح ملفات الهاتف واختر الأرشيف ومجلد الاستخراج. تتم عمليات الملفات على جهازك." to listOf("Browse phone files and choose an archive and extraction folder. Files stay on your device.", "Parcourez les fichiers du téléphone et choisissez une archive et un dossier d’extraction. Les fichiers restent sur votre appareil.", "ⵙⵏⵉⵔⵉ ⵉⴼⴰⵢⵍⵓⵜⵏ ⵏ ⵜⵉⵍⵉⴼⵓⵏⵜ."),
+    "وصول آمن إلى التخزين عبر Android" to listOf("Secure storage access through Android", "Accès sécurisé au stockage via Android", "ⴰⵎⵏⵏⵓ ⵖⵔ ⵓⵙⵍⴽⵉⵎ"),
+    "مستكشف ذاكرة الهاتف" to listOf("Phone storage explorer", "Explorateur du stockage", "ⴰⵙⵏⵉⵔⵉ ⵏ ⵓⵙⵍⴽⵉⵎ"),
+    "اختر مجلداً لعرض محتوياته" to listOf("Choose a folder to view its contents", "Choisissez un dossier pour afficher son contenu", "ⴼⵔⵏ ⴰⴽⴰⵔⵏ"),
+    "تصفح" to listOf("Browse", "Parcourir", "ⵙⵏⵉⵔⵉ"),
+    "المجلد السابق" to listOf("Parent folder", "Dossier parent", "ⴰⴽⴰⵔⵏ ⴰⵎⵣⵡⴰⵔⵓ"),
+    "استخدام كوجهة" to listOf("Use as destination", "Utiliser comme destination", "ⵙⵙⵎⵔ ⴰⵎ ⴰⴽⴰⵔⵏ"),
+    "ابحث في هذا المجلد" to listOf("Search this folder", "Rechercher dans ce dossier", "ⵔⵣⵓ ⴳ ⵓⴽⴰⵔⵏ"),
+    "المجلد فارغ" to listOf("Folder is empty", "Le dossier est vide", "ⴰⴽⴰⵔⵏ ⵉⵍⵍⴰ"),
+    "لا توجد نتائج مطابقة" to listOf("No matching results", "Aucun résultat correspondant", "ⵓⵔ ⵍⵍⵉⵏⵜ ⵉⴳⵎⴰⵎⵏ"),
+    "إنشاء مجلد هنا" to listOf("Create folder here", "Créer un dossier ici", "ⵙⵏⵓⵍⴼⵓ ⴰⴽⴰⵔⵏ"),
+    "السابق" to listOf("Previous", "Précédent", "ⵓⵣⵡⴰⵔ"),
+    "التالي" to listOf("Next", "Suivant", "ⴷⴼⴼⵉⵔ"),
+    "مجلد جديد" to listOf("New folder", "Nouveau dossier", "ⴰⴽⴰⵔⵏ ⴰⵎⴰⵢⵏⵓ"),
+    "إعادة تسمية" to listOf("Rename", "Renommer", "ⵙⵏⴼⵍ ⵉⵙⵎ"),
+    "حذف" to listOf("Delete", "Supprimer", "ⴽⴽⵙ"),
+    "نسخ" to listOf("Copy", "Copier", "ⵙⵏⵖⵍ"),
+    "نقل" to listOf("Move", "Déplacer", "ⵙⵉⵡⴹ"),
+    "أدوات سريعة" to listOf("Quick tools", "Outils rapides", "ⵉⵎⵙⵙⵏⴼⴰⵍ"),
+    "اختيار أرشيف ZIP" to listOf("Choose ZIP archive", "Choisir une archive ZIP", "ⴼⵔⵏ ⴰⵔⵛⵉⴼ ZIP"),
+    "اختر ملفاً من ذاكرة الهاتف" to listOf("Choose a file from phone storage", "Choisissez un fichier dans le stockage", "ⴼⵔⵏ ⴰⴼⴰⵢⵍⵓ"),
+    "تصفح الملفات" to listOf("Browse files", "Parcourir les fichiers", "ⵙⵏⵉⵔⵉ ⵉⴼⴰⵢⵍⵓⵜⵏ"),
+    "مجلد الاستخراج" to listOf("Extraction folder", "Dossier d’extraction", "ⴰⴽⴰⵔⵏ ⵏ ⵓⵙⵎⵓⵔⵔⵉ"),
+    "اختر المكان الذي تريد حفظ الملفات فيه" to listOf("Choose where to save files", "Choisissez où enregistrer les fichiers", "ⴼⵔⵏ ⴰⵏⵉⵡⴰⵍ ⵏ ⵓⵙⴽⵍⵙ"),
+    "تم تحديد مجلد الحفظ" to listOf("Destination folder selected", "Dossier de destination sélectionné", "ⵜⵜⵓⴼⵔⵏ ⴰⴽⴰⵔⵏ"),
+    "اختيار المجلد" to listOf("Choose folder", "Choisir un dossier", "ⴼⵔⵏ ⴰⴽⴰⵔⵏ"),
+    "اختر ملف ZIP أولاً." to listOf("Choose a ZIP file first.", "Choisissez d’abord un fichier ZIP.", "ⴼⵔⵏ ⴰⴼⴰⵢⵍⵓ ZIP ⴷⴰⵜ."),
+    "اختر مجلد الحفظ أولاً." to listOf("Choose a destination folder first.", "Choisissez d’abord un dossier de destination.", "ⴼⵔⵏ ⴰⴽⴰⵔⵏ ⴷⴰⵜ."),
+    "فك الضغط الآن" to listOf("Extract now", "Extraire maintenant", "ⵙⵎⵓⵔⵔⵉ ⵜⵓⵔⴰ"),
+    "الاسم" to listOf("Name", "Nom", "ⵉⵙⵎ"),
+    "أدخل اسماً صالحاً." to listOf("Enter a valid name.", "Saisissez un nom valide.", "ⵙⵙⵉⵡⴹ ⵉⵙⵎ ⵉⵎⵙⴰⵡⴰⵏ."),
+    "تنفيذ" to listOf("Apply", "Appliquer", "ⵙⵙⵎⵔ"),
+    "إلغاء" to listOf("Cancel", "Annuler", "ⵙⵔ"),
+    "اللغة" to listOf("Language", "Langue", "ⵜⵓⵜⵍⴰⵢⵜ")
+)
+
+private fun fileMasterText(text: String, language: String): String {
+    if (language == "ar") return text
+    val index = when (language) { "en" -> 0; "fr" -> 1; "tz" -> 2; else -> return text }
+    return FileMasterTranslations[text]?.getOrNull(index) ?: text
+}
+
+private fun fileMasterLanguageName(language: String): String = when (language) {
+    "ar" -> "العربية"; "en" -> "English"; "fr" -> "Français"; "tz" -> "ⵜⴰⵎⴰⵣⵉⵖⵜ"; else -> "العربية"
+}
+
 @Composable
 private fun FileMasterApp() {
     val context = androidx.compose.ui.platform.LocalContext.current
