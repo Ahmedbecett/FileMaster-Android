@@ -65,6 +65,7 @@ private fun FileMasterApp() {
     var browseFiles by remember { mutableStateOf<List<DocumentFile>>(emptyList()) }
     var zipSelection by remember { mutableStateOf(setOf<String>()) }
     var browsePage by remember { mutableIntStateOf(0) }
+    var browseSearch by remember { mutableStateOf("") }
     var zipSources by remember { mutableStateOf<List<DocumentFile>>(emptyList()) }
     var managerDialog by remember { mutableStateOf("") }
     var managerName by remember { mutableStateOf("") }
@@ -226,11 +227,21 @@ private fun FileMasterApp() {
                                     success = true
                                 }) { Text("استخدام كوجهة") }
                             }
-                            if (browseFiles.isEmpty()) {
-                                Text("المجلد فارغ", color = Muted, style = MaterialTheme.typography.bodySmall)
+                            OutlinedTextField(
+                                value = browseSearch,
+                                onValueChange = { browseSearch = it; browsePage = 0 },
+                                modifier = Modifier.fillMaxWidth(),
+                                placeholder = { Text("ابحث في هذا المجلد") },
+                                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                                singleLine = true,
+                                shape = RoundedCornerShape(14.dp)
+                            )
+                            val matchingBrowseFiles = browseFiles.filter { it.name.orEmpty().contains(browseSearch, ignoreCase = true) }
+                            if (matchingBrowseFiles.isEmpty()) {
+                                Text(if (browseFiles.isEmpty()) "المجلد فارغ" else "لا توجد نتائج مطابقة", color = Muted, style = MaterialTheme.typography.bodySmall)
                                 OutlinedButton(onClick = { managerName = ""; managerDialog = "mkdir" }, modifier = Modifier.fillMaxWidth()) { Text("إنشاء مجلد هنا") }
                             } else {
-                                browseFiles.drop(browsePage * 8).take(8).forEach { file ->
+                                matchingBrowseFiles.drop(browsePage * 8).take(8).forEach { file ->
                                     Row(
                                         modifier = Modifier.fillMaxWidth().clickable {
                                             if (file.isDirectory) {
@@ -274,11 +285,11 @@ private fun FileMasterApp() {
                                         )
                                     }
                                 }
-                                if (browseFiles.size > 8) {
+                                if (matchingBrowseFiles.size > 8) {
                                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                                         TextButton(enabled = browsePage > 0, onClick = { browsePage-- }) { Text("السابق") }
-                                        Text((browsePage + 1).toString() + " / " + ((browseFiles.size + 7) / 8).toString(), color = Muted)
-                                        TextButton(enabled = (browsePage + 1) * 8 < browseFiles.size, onClick = { browsePage++ }) { Text("التالي") }
+                                        Text((browsePage + 1).toString() + " / " + ((matchingBrowseFiles.size + 7) / 8).toString(), color = Muted)
+                                        TextButton(enabled = (browsePage + 1) * 8 < matchingBrowseFiles.size, onClick = { browsePage++ }) { Text("التالي") }
                                     }
                                 }
                                 Row(horizontalArrangement = Arrangement.spacedBy(5.dp), modifier = Modifier.fillMaxWidth()) {
