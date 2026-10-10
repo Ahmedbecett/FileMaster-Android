@@ -13,6 +13,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Archive
+import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.DriveFileMove
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.InsertDriveFile
@@ -61,6 +63,9 @@ private fun FileMasterApp() {
     var browseFiles by remember { mutableStateOf<List<DocumentFile>>(emptyList()) }
     var zipSelection by remember { mutableStateOf(setOf<String>()) }
     var zipSources by remember { mutableStateOf<List<DocumentFile>>(emptyList()) }
+    var managerDialog by remember { mutableStateOf("") }
+    var managerName by remember { mutableStateOf("") }
+    var moveOperation by remember { mutableStateOf(false) }
 
     val zipPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
@@ -102,6 +107,25 @@ private fun FileMasterApp() {
             zipSelection = emptySet()
             status = "تم فتح مجلد الذاكرة. اضغط على مجلد للدخول أو حدد ملفات لإنشاء ZIP."
             success = true
+        }
+    }
+
+    val operationDestinationPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
+        if (uri != null) {
+            try { context.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION) } catch (_: SecurityException) { }
+            val target = DocumentFile.fromTreeUri(context, uri)
+            val sources = browseFiles.filter { it.uri.toString() in zipSelection }
+            if (target != null) {
+                busy = true
+                status = if (moveOperation) "جارٍ نقل العناصر…" else "جارٍ نسخ العناصر…"
+                scope.launch {
+                    val result = withContext(Dispatchers.IO) { copyOrMoveDocuments(context, sources, target, moveOperation) }
+                    busy = false
+                    status = result
+                    browseFiles = browseFolder?.listFiles()?.sortedWith(compareBy<DocumentFile> { !it.isDirectory }.thenBy { it.name.orEmpty().lowercase() }) ?: emptyList()
+                    zipSelection = emptySet()
+                }
+            }
         }
     }
 
@@ -227,6 +251,20 @@ private fun FileMasterApp() {
                                     }
                                 }
                                 if (browseFiles.size > 8) Text("يعرض أول 8 عناصر؛ ادخل إلى المجلد لرؤية بقية الملفات.", color = Muted, style = MaterialTheme.typography.labelSmall)
+                                Row(horizontalArrangement = Arrangement.spacedBy(5.dp), modifier = Modifier.fillMaxWidth()) {
+                                    OutlinedButton(onClick = { managerName = ""; managerDialog = "mkdir" }, modifier = Modifier.weight(1f)) { Text("مجلد جديد") }
+                                    OutlinedButton(onClick = {
+                                        if (zipSelection.size == 1) {
+                                            managerName = browseFiles.firstOrNull { it.uri.toString() in zipSelection }?.name.orEmpty()
+                                            managerDialog = "rename"
+                                        } else status = "حدد عنصراً واحداً لإعادة تسميته."
+                                    }, modifier = Modifier.weight(1f)) { Text("إعادة تسمية") }
+                                    OutlinedButton(onClick = { managerDialog = "delete" }, modifier = Modifier.weight(1f)) { Text("حذف") }
+                                }
+                                Row(horizontalArrangement = Arrangement.spacedBy(5.dp), modifier = Modifier.fillMaxWidth()) {
+                                    OutlinedButton(onClick = { moveOperation = false; operationDestinationPicker.launch(null) }, modifier = Modifier.weight(1f)) { Icon(Icons.Default.ContentCopy, null); Text("نسخ") }
+                                    OutlinedButton(onClick = { moveOperation = true; operationDestinationPicker.launch(null) }, modifier = Modifier.weight(1f)) { Icon(Icons.Default.DriveFileMove, null); Text("نقل") }
+                                }
                                 OutlinedButton(
                                     onClick = {
                                         zipSources = browseFiles.filter { it.uri.toString() in zipSelection }
@@ -308,6 +346,47 @@ private fun FileMasterApp() {
                 )
             }
         }
+        if (managerDialog == "mkdir" || managerDialog == "rename") {
+            AlertDialog(
+                onDismissRequest = { managerDialog = "" },
+                title = { Text(if (managerDialog == "mkdir") "إنشاء مجلد" else "إعادة تسمية") },
+                text = { OutlinedTextField(value = managerName, onValueChange = { managerName = it }, label = { Text("الاسم") }, singleLine = true) },
+                confirmButton = {
+                    TextButton(onClick = {
+                        val safeName = managerName.trim()
+                        if (safeName.isBlank() || safeName == "." || safeName == ".." || safeName.contains("/") || safeName.contains(":")) {
+                            status = "أدخل اسماً صالحاً."
+                        } else {
+                            val selectedFile = browseFiles.firstOrNull { it.uri.toString() in zipSelection }
+                            val ok = if (managerDialog == "mkdir") browseFolder?.findFile(safeName) == null && browseFolder?.createDirectory(safeName) != null else selectedFile?.renameTo(safeName) == true
+                            status = if (ok) "تمت العملية بنجاح." else "تعذرت العملية؛ تحقق من الصلاحيات والاسم."
+                            managerDialog = ""
+                            browseFiles = browseFolder?.listFiles()?.sortedWith(compareBy<DocumentFile> { !it.isDirectory }.thenBy { it.name.orEmpty().lowercase() }) ?: emptyList()
+                            zipSelection = emptySet()
+                        }
+                    }) { Text("تنفيذ") }
+                },
+                dismissButton = { TextButton(onClick = { managerDialog = "" }) { Text("إلغاء") } }
+            )
+        }
+        if (managerDialog == "delete") {
+            AlertDialog(
+                onDismissRequest = { managerDialog = "" },
+                title = { Text("حذف العناصر المحددة؟") },
+                text = { Text("سيتم حذف " + zipSelection.size + " عنصر. قد لا يمكن التراجع عن ذلك.") },
+                confirmButton = {
+                    TextButton(onClick = {
+                        val targets = browseFiles.filter { it.uri.toString() in zipSelection }
+                        val removed = targets.count { it.delete() }
+                        status = "تم حذف " + removed + " من " + targets.size + " عنصر."
+                        managerDialog = ""
+                        zipSelection = emptySet()
+                        browseFiles = browseFolder?.listFiles()?.sortedWith(compareBy<DocumentFile> { !it.isDirectory }.thenBy { it.name.orEmpty().lowercase() }) ?: emptyList()
+                    }) { Text("حذف") }
+                },
+                dismissButton = { TextButton(onClick = { managerDialog = "" }) { Text("إلغاء") } }
+            )
+        }
     }
 }
 
@@ -372,6 +451,41 @@ private fun addDocumentToZip(context: android.content.Context, zip: ZipOutputStr
         ?: throw IllegalStateException("تعذرت قراءة الملف: " + path)
     zip.closeEntry()
     return 1
+}
+
+private fun copyOrMoveDocuments(context: android.content.Context, sources: List<DocumentFile>, destination: DocumentFile, move: Boolean): String {
+    var completed = 0
+    return try {
+        for (source in sources) {
+            if (source.uri == destination.uri || destination.uri.toString().startsWith(source.uri.toString())) {
+                throw IllegalStateException("لا يمكن نسخ مجلد إلى نفسه أو إلى مجلد داخله.")
+            }
+            copyDocumentTree(context, source, destination)
+            if (move && !source.delete()) throw IllegalStateException("تم النسخ لكن تعذر حذف المصدر: " + source.name)
+            completed++
+        }
+        "اكتملت العملية: " + completed + " عنصر."
+    } catch (e: Exception) {
+        "توقفت العملية بعد " + completed + " عنصر: " + (e.localizedMessage ?: "خطأ غير معروف")
+    }
+}
+
+private fun copyDocumentTree(context: android.content.Context, source: DocumentFile, parent: DocumentFile) {
+    val name = source.name ?: "file"
+    if (source.isDirectory) {
+        val existing = parent.findFile(name)
+        val target = if (existing?.isDirectory == true) existing else parent.createDirectory(name)
+            ?: throw IllegalStateException("تعذر إنشاء المجلد: " + name)
+        for (child in source.listFiles()) copyDocumentTree(context, child, target)
+    } else {
+        val dot = name.lastIndexOf('.')
+        val targetName = if (parent.findFile(name) == null) name else if (dot > 0) name.substring(0, dot) + "-copy" + name.substring(dot) else name + "-copy"
+        val target = parent.createFile("application/octet-stream", targetName) ?: throw IllegalStateException("تعذر إنشاء الملف: " + targetName)
+        context.contentResolver.openInputStream(source.uri)?.use { input ->
+            context.contentResolver.openOutputStream(target.uri, "w")?.use { output -> input.copyTo(output, 32768) }
+                ?: throw IllegalStateException("تعذرت الكتابة إلى الملف.")
+        } ?: throw IllegalStateException("تعذرت قراءة الملف.")
+    }
 }
 
 private fun extractZipSafely(context: android.content.Context, archiveUri: Uri, destinationUri: Uri): String {
