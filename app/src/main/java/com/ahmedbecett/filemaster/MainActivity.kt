@@ -34,6 +34,7 @@ import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Memory
 import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -507,6 +508,30 @@ private fun FileMasterApp() {
                         }
                     }
                 }
+                Card(colors = CardDefaults.cardColors(containerColor = Panel), shape = RoundedCornerShape(20.dp)) {
+                    Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("حالة الجهاز", fontWeight = FontWeight.Bold, color = Accent)
+                        val am = remember { context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager }
+                        val mi = remember { ActivityManager.MemoryInfo().also { am.getMemoryInfo(it) } }
+                        Text("RAM المتاحة: " + formatFileSize(mi.availMem) + " من " + formatFileSize(mi.totalMem), color = Muted, style = MaterialTheme.typography.bodySmall)
+                        Text("ملاحظة: لا يوفّر Android قياساً موحداً موثوقاً لسرعة الإنترنت أو نسبة CPU لجميع التطبيقات.", color = Muted, style = MaterialTheme.typography.bodySmall)
+                        OutlinedButton(onClick = {
+                            val selected = browseFiles.filter { it.uri.toString() in zipSelection && !it.isDirectory }
+                            if (selected.isEmpty()) { status = "حدد ملفات أولاً للإرسال."; success = false } else {
+                                val sendIntent = Intent(if (selected.size == 1) Intent.ACTION_SEND else Intent.ACTION_SEND_MULTIPLE).apply {
+                                    type = "*/*"
+                                    if (selected.size == 1) putExtra(Intent.EXTRA_STREAM, selected.first().uri)
+                                    else putParcelableArrayListExtra(Intent.EXTRA_STREAM, ArrayList(selected.map { it.uri }))
+                                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                }
+                                try { context.startActivity(Intent.createChooser(sendIntent, "إرسال عبر Bluetooth أو تطبيق Wi‑Fi"))
+                                    status = "اختر Bluetooth أو تطبيق مشاركة متوافق من قائمة Android."; success = true
+                                } catch (e: Exception) { status = "تعذر فتح قائمة المشاركة: " + (e.localizedMessage ?: "خطأ"); success = false }
+                            }
+                        }, modifier = Modifier.fillMaxWidth()) { Icon(Icons.Default.Share, contentDescription = null); Spacer(Modifier.width(8.dp)); Text("إرسال الملفات عبر تطبيقات المشاركة") }
+                    }
+                }
+                
                 Text(tr("أدوات سريعة"), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 ActionCard(
                     icon = { Icon(Icons.Default.InsertDriveFile, contentDescription = null, tint = Accent) },
