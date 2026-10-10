@@ -5,6 +5,10 @@ import android.content.ActivityNotFoundException
 import android.webkit.MimeTypeMap
 import android.net.Uri
 import android.os.Bundle
+import android.app.ActivityManager
+import android.content.Context
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
@@ -25,6 +29,11 @@ import androidx.compose.material.icons.filled.InsertDriveFile
 import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Memory
+import androidx.compose.material.icons.filled.QrCodeScanner
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -172,6 +181,9 @@ private fun FileMasterApp() {
     var recentOnly by remember { mutableStateOf(false) }
     var largeOnly by remember { mutableStateOf(false) }
     var languageMenuOpen by remember { mutableStateOf(false) }
+    var settingsOpen by remember { mutableStateOf(false) }
+    var privacyOpen by remember { mutableStateOf(false) }
+    var deviceInfoOpen by remember { mutableStateOf(false) }
     fun tr(text: String): String = fileMasterText(text, language)
     val scope = rememberCoroutineScope()
     var selectedZip by remember { mutableStateOf<Uri?>(null) }
@@ -284,6 +296,7 @@ private fun FileMasterApp() {
                         }
                     },
                     actions = {
+                        IconButton(onClick = { settingsOpen = true }) { Icon(Icons.Default.Settings, contentDescription = tr("الإعدادات"), tint = Accent) }
                         Box {
                             TextButton(onClick = { languageMenuOpen = true }) { Text(tr("اللغة") + ": " + fileMasterLanguageName(language), color = Accent) }
                             DropdownMenu(expanded = languageMenuOpen, onDismissRequest = { languageMenuOpen = false }) {
