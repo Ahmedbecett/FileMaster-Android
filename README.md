@@ -17,6 +17,12 @@ The link downloads the APK directly from the latest GitHub Release. After downlo
 - **Four-language interface in progress:** Arabic, English, French, and Tamazight (Tifinagh). Translation coverage and layout still need testing and improvement.
 - **File browsing:** Browse folders and files using Android's Storage Access Framework.
 - **Search and navigation:** Search within the selected folder, navigate folders, and paginate through large folders.
+- **Favorites:** Star files and folders; favorites are saved locally.
+- **Recent files:** Remember a small local list of recently opened files.
+- **Folder overview:** Show the number of direct children and reported file sizes in the selected folder.
+- **Quick filters:** Filter by favorites, common image formats, recently opened items, or files at least 10 MiB.
+- **Duplicate scan:** Compare same-size files using SHA-256 to find byte-identical duplicates; scanning never deletes files.
+- **Saved language:** Remember the selected interface language between launches.
 - **File information:** View file names and sizes.
 - **Folder management:** Create folders, rename items, and delete selected items.
 - **Copy and move:** Copy or move selected items to a user-selected destination.
@@ -36,6 +42,10 @@ The link downloads the APK directly from the latest GitHub Release. After downlo
 ## Limitations and development status
 
 - **ZIP only:** RAR, 7z, TAR and GZIP are not implemented yet.
+- **Folder scope:** Overview, quick filters, and duplicate scanning operate on the selected folder's immediate children, not a full-device index. Directory sizes depend on the Android document provider.
+- **Trash and recovery:** Delete currently uses the selected provider directly; recoverable trash is not implemented.
+- **Privacy lock and local-network transfer:** Not implemented yet.
+- **Integrated previews:** Files are opened using compatible apps; built-in media/PDF previews are not implemented yet.
 - **Translations:** The four language options have been started, but complete translation coverage, correct right-to-left layout for Arabic, and Tamazight display need real-device testing.
 - **Testing:** Copy/move and archive operations need broader testing across Android versions, document providers, and large files.
 - **Protected folders:** Access to Android system-protected directories is controlled by Android. FileMaster does not bypass these restrictions.
@@ -43,12 +53,13 @@ The link downloads the APK directly from the latest GitHub Release. After downlo
 
 ## Roadmap
 
-1. Verify builds and fix any CI or runtime issues; add automated tests for archive extraction and file operations.
-2. Finish and review Arabic, English, French, and Tamazight translations and layout behavior.
-3. Improve overwrite handling, progress reporting, cancellation, and large-file handling.
-4. Add RAR, 7z, TAR and GZIP support using suitable libraries after checking licenses and compatibility.
-5. Add previews for images, audio, video and documents.
-6. Improve accessibility, sorting, multi-select UX, and prepare a signed production release.
+1. Verify the latest build and test favorites, recent history, filters, and duplicate scanning on a real Android device.
+2. Complete Arabic, English, French, and Tamazight translations and right-to-left layout.
+3. Add tested RAR, 7z, TAR and GZIP support with safe extraction limits.
+4. Add recoverable trash, overwrite prompts, operation progress/cancellation, and cleanup after failed extraction.
+5. Add integrated image, audio, video, and document previews.
+6. Consider an optional privacy lock and secure local-network transfer after permissions and security review.
+7. Add automated tests and prepare a signed production release with privacy disclosures and ad consent handling.
 
 ## Build from source
 
