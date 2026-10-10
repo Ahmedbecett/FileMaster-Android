@@ -252,6 +252,7 @@ private fun FileMasterApp() {
     var previewBitmap by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
     var previewTitle by remember { mutableStateOf("") }
     var previewLoading by remember { mutableStateOf(false) }
+    var archivePreviewText by remember { mutableStateOf("") }
     var privacyPinHash by remember { mutableStateOf(preferences.getString("privacy_pin_hash", null)) }
     var isLocked by remember { mutableStateOf(privacyPinHash != null) }
     var pinEntry by remember { mutableStateOf("") }
@@ -781,6 +782,20 @@ private fun FileMasterApp() {
                     buttonText = tr("تصفح الملفات"),
                     onClick = { zipPicker.launch(arrayOf("application/zip", "application/x-zip-compressed", "application/x-7z-compressed", "application/vnd.rar", "application/x-rar-compressed", "application/x-tar", "application/gzip", "application/x-gzip", "application/octet-stream", "*/*")) }
                 )
+                OutlinedButton(onClick = {
+                    val archive = selectedZip
+                    val archiveName = selectedName
+                    if (archive == null || archiveName == null) {
+                        status = tr("اختر أرشيفاً أولاً.")
+                        success = false
+                    } else {
+                        busy = true
+                        scope.launch {
+                            archivePreviewText = withContext(Dispatchers.IO) { previewArchiveContents(context, archive, archiveName) }
+                            busy = false
+                        }
+                    }
+                }, enabled = !busy, modifier = Modifier.fillMaxWidth()) { Text(tr("معاينة محتويات الأرشيف")) }
                 ActionCard(
                     icon = { Icon(Icons.Default.FolderOpen, contentDescription = null, tint = Accent) },
                     title = tr("مجلد الاستخراج"),
@@ -841,6 +856,14 @@ private fun FileMasterApp() {
                     modifier = Modifier.fillMaxWidth(), color = Muted, style = MaterialTheme.typography.labelSmall
                 )
             }
+        }
+        if (archivePreviewText.isNotBlank()) {
+            AlertDialog(
+                onDismissRequest = { archivePreviewText = "" },
+                title = { Text(tr("معاينة محتويات الأرشيف")) },
+                text = { Text(archivePreviewText, modifier = Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState())) },
+                confirmButton = { TextButton(onClick = { archivePreviewText = "" }) { Text(tr("إغلاق المعاينة")) } }
+            )
         }
         if (previewLoading || previewBitmap != null) {
             Dialog(onDismissRequest = { previewBitmap = null; previewTitle = ""; previewLoading = false }) {
