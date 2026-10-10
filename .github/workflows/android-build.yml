@@ -30,10 +30,18 @@ jobs:
       - name: Install Android SDK 35
         run: sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
       - name: Build debug APK
-        run: gradle --no-daemon assembleDebug
+        run: gradle --no-daemon assembleDebug --stacktrace
       - name: Upload APK
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: FileMaster-debug-apk
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
+      - name: Upload build reports for diagnosis
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: FileMaster-build-reports
+          path: app/build/reports/
+          if-no-files-found: ignore
