@@ -13,6 +13,7 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
@@ -28,33 +29,40 @@ jobs:
         with:
           gradle-version: '8.11.1'
 
+      # v4 no longer requests Google's removed "tools" SDK package.
       - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
+        uses: android-actions/setup-android@v4
+        with:
+          packages: 'platform-tools'
+          accept-android-sdk-licenses: true
+          log-accepted-android-sdk-licenses: false
 
-      - name: Locate Android SDK tools
+      - name: Verify Android SDK
         shell: bash
         run: |
-          echo "ANDROID_HOME=$ANDROID_HOME"
-          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
-          SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | sort -V | tail -n 1)"
-          if [ -z "$SDKMANAGER" ]; then
-            echo "sdkmanager was not found under $ANDROID_HOME/cmdline-tools"
-            exit 1
-          fi
-          echo "$(dirname "$SDKMANAGER")" >> "$GITHUB_PATH"
-          echo "SDKMANAGER=$SDKMANAGER" >> "$GITHUB_ENV"
-          "$SDKMANAGER" --version
+          set -euo pipefail
+          echo "ANDROID_HOME=${ANDROID_HOME:-unset}"
+          echo "ANDROID_SDK_ROOT=${ANDROID_SDK_ROOT:-unset}"
+          command -v sdkmanager
+          sdkmanager --version
 
-      - name: Accept Android SDK licenses
+      - name: Install required Android SDK packages
         shell: bash
-        run: yes | "$SDKMANAGER" --licenses || true
+        run: |
+          set -euo pipefail
+          sdkmanager 'platforms;android-35' 'build-tools;35.0.0' 'platform-tools'
+          test -d "$ANDROID_HOME/platforms/android-35"
+          test -d "$ANDROID_HOME/build-tools/35.0.0"
 
-      - name: Install Android SDK 35
-        shell: bash
-        run: "$SDKMANAGER" 'platforms;android-35' 'build-tools;35.0.0' 'platform-tools'
+      - name: Validate Gradle configuration
+        run: gradle --no-daemon tasks --stacktrace
 
       - name: Build debug APK
         run: gradle --no-daemon assembleDebug --stacktrace
+
+      - name: Verify APK exists
+        if: success()
+        run: test -s app/build/outputs/apk/debug/app-debug.apk
 
       - name: Upload APK
         if: success()
@@ -69,5 +77,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: FileMaster-build-reports
-          path: app/build/reports/
+          path: |
+            app/build/reports/
+            app/build/test-results/
           if-no-files-found: ignore
