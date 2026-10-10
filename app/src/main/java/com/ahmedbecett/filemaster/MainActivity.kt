@@ -106,12 +106,15 @@ private fun fileMasterLanguageName(language: String): String = when (language) {
 @Composable
 private fun FileMasterApp() {
     val context = androidx.compose.ui.platform.LocalContext.current
+    var language by remember { mutableStateOf("ar") }
+    var languageMenuOpen by remember { mutableStateOf(false) }
+    fun tr(text: String): String = fileMasterText(text, language)
     val scope = rememberCoroutineScope()
     var selectedZip by remember { mutableStateOf<Uri?>(null) }
     var selectedName by remember { mutableStateOf<String?>(null) }
     var destination by remember { mutableStateOf<Uri?>(null) }
     var busy by remember { mutableStateOf(false) }
-    var status by remember { mutableStateOf("اختر أرشيف ZIP للبدء.") }
+    var status by remember { mutableStateOf(tr("اختر أرشيف ZIP للبدء.")) }
     var success by remember { mutableStateOf(false) }
     var browseFolder by remember { mutableStateOf<DocumentFile?>(null) }
     var browseRootUri by remember { mutableStateOf<Uri?>(null) }
@@ -129,7 +132,7 @@ private fun FileMasterApp() {
             selectedZip = uri
             selectedName = DocumentFile.fromSingleUri(context, uri)?.name ?: "archive.zip"
             success = false
-            status = "تم اختيار الأرشيف. اختر مجلد الحفظ لفك الضغط."
+            status = tr("تم اختيار الأرشيف. اختر مجلد الحفظ لفك الضغط.")
             try {
                 context.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
             } catch (_: SecurityException) { }
@@ -144,7 +147,7 @@ private fun FileMasterApp() {
                     uri, Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
                 )
             } catch (_: SecurityException) { }
-            status = "تم اختيار مجلد الحفظ. اضغط «فك الضغط الآن»."
+            status = tr("تم اختيار مجلد الحفظ. اضغط «فك الضغط الآن».")
             success = false
         }
     }
@@ -163,7 +166,7 @@ private fun FileMasterApp() {
                 compareBy<DocumentFile> { !it.isDirectory }.thenBy { it.name.orEmpty().lowercase() }
             ) ?: emptyList()
             zipSelection = emptySet()
-            status = "تم فتح مجلد الذاكرة. اضغط على مجلد للدخول أو حدد ملفات لإنشاء ZIP."
+            status = tr("تم فتح مجلد الذاكرة. اضغط على مجلد للدخول أو حدد ملفات لإنشاء ZIP.")
             success = true
         }
     }
@@ -175,7 +178,7 @@ private fun FileMasterApp() {
             val sources = browseFiles.filter { it.uri.toString() in zipSelection }
             if (target != null) {
                 busy = true
-                status = if (moveOperation) "جارٍ نقل العناصر…" else "جارٍ نسخ العناصر…"
+                status = if (moveOperation) tr("جارٍ نقل العناصر…") else tr("جارٍ نسخ العناصر…")
                 scope.launch {
                     val result = withContext(Dispatchers.IO) { copyOrMoveDocuments(context, sources, target, moveOperation) }
                     busy = false
@@ -190,7 +193,7 @@ private fun FileMasterApp() {
     val zipCreator = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri ->
         if (uri != null && zipSources.isNotEmpty()) {
             busy = true
-            status = "جارٍ إنشاء أرشيف ZIP…"
+            status = tr("جارٍ إنشاء أرشيف ZIP…")
             val sources = zipSources
             scope.launch {
                 val result = withContext(Dispatchers.IO) { createZipArchive(context, sources, uri) }
@@ -213,7 +216,18 @@ private fun FileMasterApp() {
                     title = {
                         Column {
                             Text("FileMaster", fontWeight = FontWeight.Bold)
-                            Text("مدير الملفات والأرشيفات", style = MaterialTheme.typography.labelMedium, color = Muted)
+                            Text(tr("مدير الملفات والأرشيفات"), style = MaterialTheme.typography.labelMedium, color = Muted)
+                        }
+                    },
+                    actions = {
+                        Box {
+                            TextButton(onClick = { languageMenuOpen = true }) { Text(tr("اللغة") + ": " + fileMasterLanguageName(language), color = Accent) }
+                            DropdownMenu(expanded = languageMenuOpen, onDismissRequest = { languageMenuOpen = false }) {
+                                DropdownMenuItem(text = { Text("العربية") }, onClick = { language = "ar"; languageMenuOpen = false })
+                                DropdownMenuItem(text = { Text("English") }, onClick = { language = "en"; languageMenuOpen = false })
+                                DropdownMenuItem(text = { Text("Français") }, onClick = { language = "fr"; languageMenuOpen = false })
+                                DropdownMenuItem(text = { Text("ⵜⴰⵎⴰⵣⵉⵖⵜ") }, onClick = { language = "tz"; languageMenuOpen = false })
+                            }
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(containerColor = Ink)
@@ -236,14 +250,14 @@ private fun FileMasterApp() {
                         ) {
                             Icon(Icons.Default.Archive, contentDescription = null, tint = Accent, modifier = Modifier.size(30.dp))
                         }
-                        Text("ملفاتك، تحت سيطرتك", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                        Text(tr("ملفاتك، تحت سيطرتك"), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
                         Text(
-                            "تصفح ملفات الهاتف واختر الأرشيف ومجلد الاستخراج. تتم عمليات الملفات على جهازك.",
+                            tr("تصفح ملفات الهاتف واختر الأرشيف ومجلد الاستخراج. تتم عمليات الملفات على جهازك."),
                             style = MaterialTheme.typography.bodyMedium, color = Muted
                         )
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.Default.Storage, contentDescription = null, tint = Accent)
-                            Text("وصول آمن إلى التخزين عبر Android", style = MaterialTheme.typography.labelMedium, color = Accent)
+                            Text(tr("وصول آمن إلى التخزين عبر Android"), style = MaterialTheme.typography.labelMedium, color = Accent)
                         }
                     }
                 }
@@ -257,10 +271,10 @@ private fun FileMasterApp() {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             Icon(Icons.Default.FolderOpen, contentDescription = null, tint = Accent)
                             Column(Modifier.weight(1f)) {
-                                Text("مستكشف ذاكرة الهاتف", fontWeight = FontWeight.Bold)
-                                Text(browseFolder?.name ?: "اختر مجلداً لعرض محتوياته", color = Muted, style = MaterialTheme.typography.bodySmall)
+                                Text(tr("مستكشف ذاكرة الهاتف"), fontWeight = FontWeight.Bold)
+                                Text(browseFolder?.name ?: tr("اختر مجلداً لعرض محتوياته"), color = Muted, style = MaterialTheme.typography.bodySmall)
                             }
-                            OutlinedButton(onClick = { browsePicker.launch(null) }) { Text("تصفح") }
+                            OutlinedButton(onClick = { browsePicker.launch(null) }) { Text(tr("تصفح")) }
                         }
                         if (browseFolder != null) {
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -273,26 +287,26 @@ private fun FileMasterApp() {
                                         browseFiles = parent.listFiles().sortedWith(compareBy<DocumentFile> { !it.isDirectory }.thenBy { it.name.orEmpty().lowercase() })
                                         zipSelection = emptySet()
                                     }
-                                }) { Text("المجلد السابق") }
+                                }) { Text(tr("المجلد السابق")) }
                                 OutlinedButton(onClick = {
                                     destination = browseRootUri
-                                    status = "تم تعيين المجلد الرئيسي المختار كوجهة لفك الضغط."
+                                    status = tr("تم تعيين المجلد الرئيسي المختار كوجهة لفك الضغط.")
                                     success = true
-                                }) { Text("استخدام كوجهة") }
+                                }) { Text(tr("استخدام كوجهة")) }
                             }
                             OutlinedTextField(
                                 value = browseSearch,
                                 onValueChange = { browseSearch = it; browsePage = 0 },
                                 modifier = Modifier.fillMaxWidth(),
-                                placeholder = { Text("ابحث في هذا المجلد") },
+                                placeholder = { Text(tr("ابحث في هذا المجلد")) },
                                 leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
                                 singleLine = true,
                                 shape = RoundedCornerShape(14.dp)
                             )
                             val matchingBrowseFiles = browseFiles.filter { it.name.orEmpty().contains(browseSearch, ignoreCase = true) }
                             if (matchingBrowseFiles.isEmpty()) {
-                                Text(if (browseFiles.isEmpty()) "المجلد فارغ" else "لا توجد نتائج مطابقة", color = Muted, style = MaterialTheme.typography.bodySmall)
-                                OutlinedButton(onClick = { managerName = ""; managerDialog = "mkdir" }, modifier = Modifier.fillMaxWidth()) { Text("إنشاء مجلد هنا") }
+                                Text(if (browseFiles.isEmpty()) tr("المجلد فارغ") else tr("لا توجد نتائج مطابقة"), color = Muted, style = MaterialTheme.typography.bodySmall)
+                                OutlinedButton(onClick = { managerName = ""; managerDialog = "mkdir" }, modifier = Modifier.fillMaxWidth()) { Text(tr("إنشاء مجلد هنا")) }
                             } else {
                                 matchingBrowseFiles.drop(browsePage * 8).take(8).forEach { file ->
                                     Row(
@@ -307,20 +321,20 @@ private fun FileMasterApp() {
                                                 if (fileName.lowercase().endsWith(".zip")) {
                                                     selectedZip = file.uri
                                                     selectedName = fileName
-                                                    status = "تم اختيار " + fileName + ". استخدم زر فك الضغط لاستخراجه."
+                                                    status = tr("تم اختيار ") + fileName + tr(". استخدم زر فك الضغط لاستخراجه.")
                                                     success = true
                                                 } else {
                                                     val extension = fileName.substringAfterLast('.', "").lowercase()
                                                     val mime = MimeTypeMap.getSingleton().getMimeTypeFromExtension(extension) ?: "*/*"
                                                     try {
                                                         context.startActivity(Intent(Intent.ACTION_VIEW).setDataAndType(file.uri, mime).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION))
-                                                        status = "تم فتح " + fileName + " باستخدام التطبيق المناسب."
+                                                        status = tr("تم فتح ") + fileName + tr(" باستخدام التطبيق المناسب.")
                                                         success = true
                                                     } catch (_: ActivityNotFoundException) {
-                                                        status = "لا يوجد تطبيق مثبت لفتح هذا النوع من الملفات."
+                                                        status = tr("لا يوجد تطبيق مثبت لفتح هذا النوع من الملفات.")
                                                         success = false
                                                     } catch (e: Exception) {
-                                                        status = "تعذر فتح الملف: " + (e.localizedMessage ?: "خطأ غير معروف")
+                                                        status = tr("تعذر فتح الملف: ") + (e.localizedMessage ?: tr("خطأ غير معروف"))
                                                         success = false
                                                     }
                                                 }
@@ -329,7 +343,7 @@ private fun FileMasterApp() {
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
                                         Icon(if (file.isDirectory) Icons.Default.FolderOpen else Icons.Default.InsertDriveFile, contentDescription = null, tint = Accent)
-                                        Text(file.name ?: "بدون اسم", modifier = Modifier.weight(1f).padding(start = 8.dp), maxLines = 1, color = Color(0xFFE0E6EF))
+                                        Text(file.name ?: tr("بدون اسم"), modifier = Modifier.weight(1f).padding(start = 8.dp), maxLines = 1, color = Color(0xFFE0E6EF))
                                         Checkbox(
                                             checked = file.uri.toString() in zipSelection,
                                             onCheckedChange = { checked ->
@@ -340,50 +354,50 @@ private fun FileMasterApp() {
                                 }
                                 if (matchingBrowseFiles.size > 8) {
                                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                        TextButton(enabled = browsePage > 0, onClick = { browsePage-- }) { Text("السابق") }
+                                        TextButton(enabled = browsePage > 0, onClick = { browsePage-- }) { Text(tr("السابق")) }
                                         Text((browsePage + 1).toString() + " / " + ((matchingBrowseFiles.size + 7) / 8).toString(), color = Muted)
-                                        TextButton(enabled = (browsePage + 1) * 8 < matchingBrowseFiles.size, onClick = { browsePage++ }) { Text("التالي") }
+                                        TextButton(enabled = (browsePage + 1) * 8 < matchingBrowseFiles.size, onClick = { browsePage++ }) { Text(tr("التالي")) }
                                     }
                                 }
                                 Row(horizontalArrangement = Arrangement.spacedBy(5.dp), modifier = Modifier.fillMaxWidth()) {
-                                    OutlinedButton(onClick = { managerName = ""; managerDialog = "mkdir" }, modifier = Modifier.weight(1f)) { Text("مجلد جديد") }
+                                    OutlinedButton(onClick = { managerName = ""; managerDialog = "mkdir" }, modifier = Modifier.weight(1f)) { Text(tr("مجلد جديد")) }
                                     OutlinedButton(onClick = {
                                         if (zipSelection.size == 1) {
                                             managerName = browseFiles.firstOrNull { it.uri.toString() in zipSelection }?.name.orEmpty()
                                             managerDialog = "rename"
-                                        } else status = "حدد عنصراً واحداً لإعادة تسميته."
-                                    }, modifier = Modifier.weight(1f)) { Text("إعادة تسمية") }
-                                    OutlinedButton(onClick = { managerDialog = "delete" }, modifier = Modifier.weight(1f)) { Text("حذف") }
+                                        } else status = tr("حدد عنصراً واحداً لإعادة تسميته.")
+                                    }, modifier = Modifier.weight(1f)) { Text(tr("إعادة تسمية")) }
+                                    OutlinedButton(onClick = { managerDialog = "delete" }, modifier = Modifier.weight(1f)) { Text(tr("حذف")) }
                                 }
                                 Row(horizontalArrangement = Arrangement.spacedBy(5.dp), modifier = Modifier.fillMaxWidth()) {
-                                    OutlinedButton(onClick = { moveOperation = false; operationDestinationPicker.launch(null) }, modifier = Modifier.weight(1f)) { Icon(Icons.Default.ContentCopy, null); Text("نسخ") }
-                                    OutlinedButton(onClick = { moveOperation = true; operationDestinationPicker.launch(null) }, modifier = Modifier.weight(1f)) { Icon(Icons.Default.DriveFileMove, null); Text("نقل") }
+                                    OutlinedButton(onClick = { moveOperation = false; operationDestinationPicker.launch(null) }, modifier = Modifier.weight(1f)) { Icon(Icons.Default.ContentCopy, null); Text(tr("نسخ")) }
+                                    OutlinedButton(onClick = { moveOperation = true; operationDestinationPicker.launch(null) }, modifier = Modifier.weight(1f)) { Icon(Icons.Default.DriveFileMove, null); Text(tr("نقل")) }
                                 }
                                 OutlinedButton(
                                     onClick = {
                                         zipSources = browseFiles.filter { it.uri.toString() in zipSelection }
-                                        if (zipSources.isEmpty()) status = "حدد ملفاً واحداً على الأقل لإنشاء ZIP."
+                                        if (zipSources.isEmpty()) status = tr("حدد ملفاً واحداً على الأقل لإنشاء ZIP.")
                                         else zipCreator.launch("FileMaster-archive.zip")
                                     },
                                     modifier = Modifier.fillMaxWidth()
-                                ) { Text("إنشاء ZIP من العناصر المحددة (" + zipSelection.size + ")") }
+                                ) { Text(tr("إنشاء ZIP من العناصر المحددة (") + zipSelection.size + ")") }
                             }
                         }
                     }
                 }
-                Text("أدوات سريعة", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Text(tr("أدوات سريعة"), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 ActionCard(
                     icon = { Icon(Icons.Default.InsertDriveFile, contentDescription = null, tint = Accent) },
-                    title = "اختيار أرشيف ZIP",
-                    detail = selectedName ?: "اختر ملفاً من ذاكرة الهاتف",
-                    buttonText = "تصفح الملفات",
+                    title = tr("اختيار أرشيف ZIP"),
+                    detail = selectedName ?: tr("اختر ملفاً من ذاكرة الهاتف"),
+                    buttonText = tr("تصفح الملفات"),
                     onClick = { zipPicker.launch(arrayOf("application/zip", "application/x-zip-compressed", "application/octet-stream", "*/*")) }
                 )
                 ActionCard(
                     icon = { Icon(Icons.Default.FolderOpen, contentDescription = null, tint = Accent) },
-                    title = "مجلد الاستخراج",
-                    detail = if (destination == null) "اختر المكان الذي تريد حفظ الملفات فيه" else "تم تحديد مجلد الحفظ",
-                    buttonText = "اختيار المجلد",
+                    title = tr("مجلد الاستخراج"),
+                    detail = if (destination == null) tr("اختر المكان الذي تريد حفظ الملفات فيه") else tr("تم تحديد مجلد الحفظ"),
+                    buttonText = tr("اختيار المجلد"),
                     onClick = { folderPicker.launch(null) }
                 )
 
@@ -392,19 +406,19 @@ private fun FileMasterApp() {
                         val archive = selectedZip
                         val target = destination
                         if (archive == null) {
-                            status = "اختر ملف ZIP أولاً."
+                            status = tr("اختر ملف ZIP أولاً.")
                             success = false
                         } else if (target == null) {
-                            status = "اختر مجلد الحفظ أولاً."
+                            status = tr("اختر مجلد الحفظ أولاً.")
                             success = false
                         } else {
                             busy = true
                             success = false
-                            status = "جارٍ فك الضغط…"
+                            status = tr("جارٍ فك الضغط…")
                             scope.launch {
                                 val result = withContext(Dispatchers.IO) { extractZipSafely(context, archive, target) }
                                 busy = false
-                                success = result.startsWith("تم استخراج")
+                                success = result.startsWith(tr("تم استخراج"))
                                 status = result
                             }
                         }
@@ -417,7 +431,7 @@ private fun FileMasterApp() {
                         CircularProgressIndicator(modifier = Modifier.size(20.dp), color = Ink, strokeWidth = 2.dp)
                         Spacer(Modifier.size(10.dp))
                     }
-                    Text(if (busy) "جارٍ الاستخراج…" else "فك الضغط الآن", fontWeight = FontWeight.Bold)
+                    Text(if (busy) tr("جارٍ الاستخراج…") else tr("فك الضغط الآن"), fontWeight = FontWeight.Bold)
                 }
 
                 Card(
@@ -435,7 +449,7 @@ private fun FileMasterApp() {
                 }
                 Spacer(Modifier.height(8.dp))
                 Text(
-                    "النسخة 1.0 • صُمّم بواسطة Ahmedbecett",
+                    tr("النسخة 1.0 • صُمّم بواسطة Ahmedbecett"),
                     modifier = Modifier.fillMaxWidth(), color = Muted, style = MaterialTheme.typography.labelSmall
                 )
             }
@@ -443,42 +457,42 @@ private fun FileMasterApp() {
         if (managerDialog == "mkdir" || managerDialog == "rename") {
             AlertDialog(
                 onDismissRequest = { managerDialog = "" },
-                title = { Text(if (managerDialog == "mkdir") "إنشاء مجلد" else "إعادة تسمية") },
-                text = { OutlinedTextField(value = managerName, onValueChange = { managerName = it }, label = { Text("الاسم") }, singleLine = true) },
+                title = { Text(if (managerDialog == "mkdir") tr("إنشاء مجلد") else tr("إعادة تسمية")) },
+                text = { OutlinedTextField(value = managerName, onValueChange = { managerName = it }, label = { Text(tr("الاسم")) }, singleLine = true) },
                 confirmButton = {
                     TextButton(onClick = {
                         val safeName = managerName.trim()
                         if (safeName.isBlank() || safeName == "." || safeName == ".." || safeName.contains("/") || safeName.contains(":")) {
-                            status = "أدخل اسماً صالحاً."
+                            status = tr("أدخل اسماً صالحاً.")
                         } else {
                             val selectedFile = browseFiles.firstOrNull { it.uri.toString() in zipSelection }
                             val ok = if (managerDialog == "mkdir") browseFolder?.findFile(safeName) == null && browseFolder?.createDirectory(safeName) != null else selectedFile?.renameTo(safeName) == true
-                            status = if (ok) "تمت العملية بنجاح." else "تعذرت العملية؛ تحقق من الصلاحيات والاسم."
+                            status = if (ok) tr("تمت العملية بنجاح.") else tr("تعذرت العملية؛ تحقق من الصلاحيات والاسم.")
                             managerDialog = ""
                             browseFiles = browseFolder?.listFiles()?.sortedWith(compareBy<DocumentFile> { !it.isDirectory }.thenBy { it.name.orEmpty().lowercase() }) ?: emptyList()
                             zipSelection = emptySet()
                         }
-                    }) { Text("تنفيذ") }
+                    }) { Text(tr("تنفيذ")) }
                 },
-                dismissButton = { TextButton(onClick = { managerDialog = "" }) { Text("إلغاء") } }
+                dismissButton = { TextButton(onClick = { managerDialog = "" }) { Text(tr("إلغاء")) } }
             )
         }
         if (managerDialog == "delete") {
             AlertDialog(
                 onDismissRequest = { managerDialog = "" },
-                title = { Text("حذف العناصر المحددة؟") },
-                text = { Text("سيتم حذف " + zipSelection.size + " عنصر. قد لا يمكن التراجع عن ذلك.") },
+                title = { Text(tr("حذف العناصر المحددة؟")) },
+                text = { Text(tr("سيتم حذف ") + zipSelection.size + tr(" عنصر. قد لا يمكن التراجع عن ذلك.")) },
                 confirmButton = {
                     TextButton(onClick = {
                         val targets = browseFiles.filter { it.uri.toString() in zipSelection }
                         val removed = targets.count { it.delete() }
-                        status = "تم حذف " + removed + " من " + targets.size + " عنصر."
+                        status = tr("تم حذف ") + removed + tr(" من ") + targets.size + tr(" عنصر.")
                         managerDialog = ""
                         zipSelection = emptySet()
                         browseFiles = browseFolder?.listFiles()?.sortedWith(compareBy<DocumentFile> { !it.isDirectory }.thenBy { it.name.orEmpty().lowercase() }) ?: emptyList()
-                    }) { Text("حذف") }
+                    }) { Text(tr("حذف")) }
                 },
-                dismissButton = { TextButton(onClick = { managerDialog = "" }) { Text("إلغاء") } }
+                dismissButton = { TextButton(onClick = { managerDialog = "" }) { Text(tr("إلغاء")) } }
             )
         }
     }
