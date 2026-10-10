@@ -93,10 +93,59 @@ private val FileMasterTranslations: Map<String, List<String>> = mapOf(
     "اللغة" to listOf("Language", "Langue", "ⵜⵓⵜⵍⴰⵢⵜ")
 )
 
+private val FileMasterExtraTranslations: Map<String, List<String>> = mapOf(
+    "اختر أرشيف ZIP للبدء." to listOf("Choose a ZIP archive to begin.", "Choisissez une archive ZIP pour commencer.", "ⴼⵔⵏ ⴰⵔⵛⵉⴼ ZIP ⵉ ⵓⴱⴷⵓ."),
+    "تم اختيار الأرشيف. اختر مجلد الحفظ لفك الضغط." to listOf("Archive selected. Choose a destination folder.", "Archive sélectionnée. Choisissez un dossier de destination.", "ⵜⵜⵓⴼⵔⵏ ⴰⵔⵛⵉⴼ. ⴼⵔⵏ ⴰⴽⴰⵔⵏ."),
+    "تم اختيار مجلد الحفظ. اضغط «فك الضغط الآن»." to listOf("Destination selected. Tap “Extract now”.", "Destination sélectionnée. Appuyez sur « Extraire maintenant ».", "ⵜⵜⵓⴼⵔⵏ ⴰⴽⴰⵔⵏ. ⵙⵎⵓⵔⵔⵉ ⵜⵓⵔⴰ."),
+    "تم فتح مجلد الذاكرة. اضغط على مجلد للدخول أو حدد ملفات لإنشاء ZIP." to listOf("Folder opened. Open a folder or select files to create a ZIP.", "Dossier ouvert. Ouvrez un dossier ou sélectionnez des fichiers pour créer un ZIP.", "ⵍⵍⴰ ⵓⴽⴰⵔⵏ. ⴼⵔⵏ ⵉⴼⴰⵢⵍⵓⵜⵏ ⵉ ZIP."),
+    "جارٍ نقل العناصر…" to listOf("Moving items…", "Déplacement des éléments…", "ⴰⵙⵉⵡⴹ…"),
+    "جارٍ نسخ العناصر…" to listOf("Copying items…", "Copie des éléments…", "ⴰⵙⵏⵖⵍ…"),
+    "جارٍ إنشاء أرشيف ZIP…" to listOf("Creating ZIP archive…", "Création de l’archive ZIP…", "ⴰⵙⵏⵓⵍⴼⵓ ⵏ ZIP…"),
+    "تم اختيار " to listOf("Selected: ", "Sélectionné : ", "ⵜⵜⵓⴼⵔⵏ: "),
+    ". استخدم زر فك الضغط لاستخراجه." to listOf(". Use Extract to unpack it.", ". Utilisez Extraire pour le décompresser.", ". ⵙⵙⵎⵔ ⵙⵎⵓⵔⵔⵉ."),
+    "تم فتح " to listOf("Opened: ", "Ouvert : ", "ⵍⵍⴰ: "),
+    " باستخدام التطبيق المناسب." to listOf(" with the appropriate app.", " avec l’application appropriée.", " ⵙ ⵓⵙⵏⴰⵙ ⵉⵎⵙⴰⵡⴰⵏ."),
+    "تعذر فتح الملف: " to listOf("Could not open file: ", "Impossible d’ouvrir le fichier : ", "ⵓⵔ ⵉⵣⵎⵉⵔ ⴰⴷ ⵉⵍⴷⵉ ⴰⴼⴰⵢⵍⵓ: "),
+    "حدد عنصراً واحداً لإعادة تسميته." to listOf("Select one item to rename.", "Sélectionnez un élément à renommer.", "ⴼⵔⵏ ⴰⵙⵖⵓⵏ ⵢⴰⵏ."),
+    "حدد ملفاً واحداً على الأقل لإنشاء ZIP." to listOf("Select at least one item to create a ZIP.", "Sélectionnez au moins un élément pour créer un ZIP.", "ⴼⵔⵏ ⴰⵙⵖⵓⵏ ⵉ ZIP."),
+    "إنشاء ZIP من العناصر المحددة (" to listOf("Create ZIP from selected items (", "Créer un ZIP à partir des éléments sélectionnés (", "ⵙⵏⵓⵍⴼⵓ ZIP ("),
+    "تم تعيين المجلد الرئيسي المختار كوجهة لفك الضغط." to listOf("Selected root folder set as extraction destination.", "Le dossier racine sélectionné est défini comme destination d’extraction.", "ⴰⴽⴰⵔⵏ ⵉⵜⵜⵓⴼⵔⵏ ⵏ ⵓⵙⵎⵓⵔⵔⵉ."),
+    "لا يوجد تطبيق مثبت لفتح هذا النوع من الملفات." to listOf("No installed app can open this file type.", "Aucune application installée ne peut ouvrir ce type de fichier.", "ⵓⵔ ⵍⵍⵉ ⴰⵙⵏⴰⵙ ⵉ ⵓⴼⴰⵢⵍⵓ."),
+    "خطأ غير معروف" to listOf("Unknown error", "Erreur inconnue", "ⴰⵣⴳⵍ ⵓⵔ ⵉⵜⵜⵓⵙⵙⵏ"),
+    "بدون اسم" to listOf("Unnamed", "Sans nom", "ⵡⴰⵔ ⵉⵙⵎ"),
+    "النسخة 1.0 • صُمّم بواسطة Ahmedbecett" to listOf("Version 1.0 • Designed by Ahmedbecett", "Version 1.0 • Conçu par Ahmedbecett", "ⵍⵇⵇⵎ 1.0 • Ahmedbecett"),
+    "تمت العملية بنجاح." to listOf("Operation completed successfully.", "Opération terminée avec succès.", "ⵜⴰⵎⵙⴰⵙⵜ ⵜⴼⴰⴽ."),
+    "تعذرت العملية؛ تحقق من الصلاحيات والاسم." to listOf("Operation failed; check permissions and name.", "Échec de l’opération ; vérifiez les autorisations et le nom.", "ⵜⴰⵎⵙⴰⵙⵜ ⵜⵏⵣⴳⵍ."),
+    "حذف العناصر المحددة؟" to listOf("Delete selected items?", "Supprimer les éléments sélectionnés ?", "ⴽⴽⵙ ⵉⵙⵖⵓⵏ ⵉⵜⵜⵓⴼⵔⵏ?"),
+    "سيتم حذف " to listOf("Will delete ", "Suppression de ", "ⴰⴷ ⵉⵜⵜⵓⴽⴽⵙ "),
+    " عنصر. قد لا يمكن التراجع عن ذلك." to listOf(" item(s). This may not be reversible.", " élément(s). Cette action peut être irréversible.", " ⵉⵙⵖⵓⵏ. ⵓⵔ ⵉⵣⵎⵉⵔ ⵓⵙⵓⵖⵍ."),
+    "تم حذف " to listOf("Deleted ", "Supprimé ", "ⵉⵜⵜⵓⴽⴽⵙ "),
+    " من " to listOf(" of ", " sur ", " ⵙⴳ "),
+    " عنصر." to listOf(" item(s).", " élément(s).", " ⵉⵙⵖⵓⵏ."),
+    "تعذر إنشاء ملف ZIP." to listOf("Could not create ZIP file.", "Impossible de créer le fichier ZIP.", "ⵓⵔ ⵉⵣⵎⵉⵔ ⴰⴷ ⵉⵙⵏⵓⵍⴼⵓ ZIP."),
+    "تم إنشاء أرشيف ZIP بنجاح، عدد الملفات: " to listOf("ZIP archive created. File count: ", "Archive ZIP créée. Nombre de fichiers : ", "ⵜⵓⵙⵏⵓⵍⴼⴰ ⵜⴰⵔⵛⵉⴼⵜ ZIP. ⵓⵟⵟⵓⵏ ⵏ ⵉⴼⴰⵢⵍⵓⵜⵏ: "),
+    "فشل إنشاء ZIP: " to listOf("ZIP creation failed: ", "Échec de création du ZIP : ", "ⵓⵔ ⵉⵏⵊⵉⵃ ⵓⵙⵏⵓⵍⴼⵓ ZIP: "),
+    "لا يمكن نسخ مجلد إلى نفسه أو إلى مجلد داخله." to listOf("Cannot copy a folder into itself or one of its subfolders.", "Impossible de copier un dossier dans lui-même ou dans un sous-dossier.", "ⵓⵔ ⵉⵣⵎⵉⵔ ⴰⴷ ⵜⵙⵏⵖⵍⴷ ⴰⴽⴰⵔⵏ ⵖ ⵉⵎⴰⵏⵏⵙ."),
+    "اكتملت العملية: " to listOf("Operation complete: ", "Opération terminée : ", "ⵜⴼⴰⴽ ⵜⴰⵎⵙⴰⵙⵜ: "),
+    "توقفت العملية بعد " to listOf("Operation stopped after ", "Opération arrêtée après ", "ⵜⵓⵙⵙⵉ ⵜⴰⵎⵙⴰⵙⵜ ⴷⴼⴼⵉⵔ "),
+    "تعذر إنشاء المجلد: " to listOf("Could not create folder: ", "Impossible de créer le dossier : ", "ⵓⵔ ⵉⵣⵎⵉⵔ ⴰⴷ ⵉⵙⵏⵓⵍⴼⵓ ⴰⴽⴰⵔⵏ: "),
+    "تعذر إنشاء الملف: " to listOf("Could not create file: ", "Impossible de créer le fichier : ", "ⵓⵔ ⵉⵣⵎⵉⵔ ⴰⴷ ⵉⵙⵏⵓⵍⴼⵓ ⴰⴼⴰⵢⵍⵓ: "),
+    "تعذرت الكتابة إلى الملف." to listOf("Could not write to file.", "Impossible d’écrire dans le fichier.", "ⵓⵔ ⵉⵣⵎⵉⵔ ⴰⴷ ⵉⵔⴰ ⵖ ⵓⴼⴰⵢⵍⵓ."),
+    "تعذرت قراءة الملف." to listOf("Could not read file.", "Impossible de lire le fichier.", "ⵓⵔ ⵉⵣⵎⵉⵔ ⴰⴷ ⵉⵖⵔ ⴰⴼⴰⵢⵍⵓ."),
+    "تعذر فتح مجلد الحفظ." to listOf("Could not open destination folder.", "Impossible d’ouvrir le dossier de destination.", "ⵓⵔ ⵉⵣⵎⵉⵔ ⴰⴷ ⵉⵍⴷⵉ ⴰⴽⴰⵔⵏ."),
+    "تعذر قراءة الأرشيف المحدد." to listOf("Could not read selected archive.", "Impossible de lire l’archive sélectionnée.", "ⵓⵔ ⵉⵣⵎⵉⵔ ⴰⴷ ⵉⵖⵔ ⵜⴰⵔⵛⵉⴼⵜ."),
+    "الأرشيف يحتوي على عدد كبير جداً من العناصر." to listOf("Archive contains too many entries.", "L’archive contient trop d’éléments.", "ⵜⴰⵔⵛⵉⴼⵜ ⵜⵙⵄⴰ ⴰⵟⵟⴰⵙ ⵏ ⵉⵙⵖⵓⵏ."),
+    "يحتوي الأرشيف على مسار غير آمن." to listOf("Archive contains an unsafe path.", "L’archive contient un chemin non sécurisé.", "ⵜⴰⵔⵛⵉⴼⵜ ⵜⵙⵄⴰ ⴰⴱⵔⵉⴷ ⵓⵔ ⵉⵎⵏ."),
+    "تجاوز حجم الاستخراج الحد المسموح (512 ميغابايت)." to listOf("Extraction exceeded the 512 MB limit.", "L’extraction a dépassé la limite de 512 Mo.", "ⵉⵄⴷⴰ ⵓⵙⵎⵓⵔⵔⵉ ⵍⵃⴷ ⵏ 512 MB."),
+    "تم استخراج " to listOf("Extracted ", "Extrait ", "ⵉⵜⵜⵓⵙⵎⵓⵔⵔⵉ "),
+    " ملف بنجاح." to listOf(" file(s) successfully.", " fichier(s) avec succès.", " ⵉⴼⴰⵢⵍⵓⵜⵏ ⵙ ⵓⵏⴼⵍⵓⵍ."),
+    "فشل فك الضغط: " to listOf("Extraction failed: ", "Échec de l’extraction : ", "ⵓⵔ ⵉⵏⵊⵉⵃ ⵓⵙⵎⵓⵔⵔⵉ: ")
+)
+
 private fun fileMasterText(text: String, language: String): String {
     if (language == "ar") return text
     val index = when (language) { "en" -> 0; "fr" -> 1; "tz" -> 2; else -> return text }
-    return FileMasterTranslations[text]?.getOrNull(index) ?: text
+    return (FileMasterTranslations[text] ?: FileMasterExtraTranslations[text])?.getOrNull(index) ?: text
 }
 
 private fun fileMasterLanguageName(language: String): String = when (language) {
