@@ -233,10 +233,6 @@ private fun FileMasterApp() {
     var lanServer by remember { mutableStateOf<LocalFileShareServer?>(null) }
     var lanShareUrl by remember { mutableStateOf("") }
     DisposableEffect(lanServer) { onDispose { lanServer?.close() } }
-    var privacyPinHash by remember { mutableStateOf(preferences.getString("privacy_pin_hash", null)) }
-    var isLocked by remember { mutableStateOf(privacyPinHash != null) }
-    var pinEntry by remember { mutableStateOf("") }
-    var pinError by remember { mutableStateOf("") }
 
     val zipPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
