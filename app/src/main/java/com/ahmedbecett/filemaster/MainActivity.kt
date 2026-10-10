@@ -8,6 +8,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -53,6 +54,10 @@ private fun FileMasterApp() {
     var busy by remember { mutableStateOf(false) }
     var status by remember { mutableStateOf("اختر أرشيف ZIP للبدء.") }
     var success by remember { mutableStateOf(false) }
+    var browseFolder by remember { mutableStateOf<DocumentFile?>(null) }
+    var browseFiles by remember { mutableStateOf<List<DocumentFile>>(emptyList()) }
+    var zipSelection by remember { mutableStateOf(setOf<String>()) }
+    var zipSources by remember { mutableStateOf<List<DocumentFile>>(emptyList()) }
 
     val zipPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
@@ -125,6 +130,79 @@ private fun FileMasterApp() {
                     }
                 }
 
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = Panel),
+                    shape = RoundedCornerShape(22.dp)
+                ) {
+                    Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Icon(Icons.Default.FolderOpen, contentDescription = null, tint = Accent)
+                            Column(Modifier.weight(1f)) {
+                                Text("مستكشف ذاكرة الهاتف", fontWeight = FontWeight.Bold)
+                                Text(browseFolder?.name ?: "اختر مجلداً لعرض محتوياته", color = Muted, style = MaterialTheme.typography.bodySmall)
+                            }
+                            OutlinedButton(onClick = { browsePicker.launch(null) }) { Text("تصفح") }
+                        }
+                        if (browseFolder != null) {
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                OutlinedButton(onClick = {
+                                    val root = browseFolder
+                                    val parent = root?.parentFile
+                                    if (parent != null) {
+                                        browseFolder = parent
+                                        browseFiles = parent.listFiles().sortedWith(compareBy<DocumentFile> { !it.isDirectory }.thenBy { it.name.orEmpty().lowercase() })
+                                        zipSelection = emptySet()
+                                    }
+                                }) { Text("المجلد السابق") }
+                                OutlinedButton(onClick = {
+                                    destination = browseFolder?.uri
+                                    status = "تم تعيين مجلد التصفح كوجهة لفك الضغط."
+                                    success = true
+                                }) { Text("استخدام كوجهة") }
+                            }
+                            if (browseFiles.isEmpty()) {
+                                Text("المجلد فارغ", color = Muted, style = MaterialTheme.typography.bodySmall)
+                            } else {
+                                browseFiles.take(8).forEach { file ->
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth().clickable {
+                                            if (file.isDirectory) {
+                                                browseFolder = file
+                                                browseFiles = file.listFiles().sortedWith(compareBy<DocumentFile> { !it.isDirectory }.thenBy { it.name.orEmpty().lowercase() })
+                                                zipSelection = emptySet()
+                                            } else {
+                                                selectedZip = file.uri
+                                                selectedName = file.name
+                                                status = "تم اختيار " + (file.name ?: "الملف") + ". إذا كان ZIP يمكنك فك ضغطه."
+                                                success = true
+                                            }
+                                        }.padding(vertical = 5.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(if (file.isDirectory) Icons.Default.FolderOpen else Icons.Default.InsertDriveFile, contentDescription = null, tint = Accent)
+                                        Text(file.name ?: "بدون اسم", modifier = Modifier.weight(1f).padding(start = 8.dp), maxLines = 1, color = Color(0xFFE0E6EF))
+                                        if (!file.isDirectory) Checkbox(
+                                            checked = file.uri.toString() in zipSelection,
+                                            onCheckedChange = { checked ->
+                                                zipSelection = if (checked) zipSelection + file.uri.toString() else zipSelection - file.uri.toString()
+                                            }
+                                        )
+                                    }
+                                }
+                                if (browseFiles.size > 8) Text("يعرض أول 8 عناصر؛ ادخل إلى المجلد لرؤية بقية الملفات.", color = Muted, style = MaterialTheme.typography.labelSmall)
+                                OutlinedButton(
+                                    onClick = {
+                                        zipSources = browseFiles.filter { it.uri.toString() in zipSelection }
+                                        if (zipSources.isEmpty()) status = "حدد ملفاً واحداً على الأقل لإنشاء ZIP."
+                                        else zipCreator.launch("FileMaster-archive.zip")
+                                    },
+                                    modifier = Modifier.fillMaxWidth()
+                                ) { Text("إنشاء ZIP من العناصر المحددة (" + zipSelection.size + ")") }
+                            }
+                        }
+                    }
+                }
                 Text("أدوات سريعة", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 ActionCard(
                     icon = { Icon(Icons.Default.InsertDriveFile, contentDescription = null, tint = Accent) },
