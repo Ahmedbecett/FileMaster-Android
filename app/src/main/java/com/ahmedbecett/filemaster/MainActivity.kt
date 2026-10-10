@@ -144,7 +144,6 @@ private val FileMasterExtraTranslations: Map<String, List<String>> = mapOf(
     "فتح التطبيق" to listOf("Unlock app", "Déverrouiller", "ⵍⴷⵉ ⴰⵙⵏⴰⵙ"),
     "إزالة القفل باستخدام الرمز" to listOf("Remove lock using PIN", "Supprimer le verrou avec le code", "ⴽⴽⵙ ⴰⵎⵙⴰⵔ"),
     "الرمز غير صحيح." to listOf("Incorrect PIN.", "Code incorrect.", "ⴰⵏⴰⵍ ⵓⵔ ⵉⵎⵙⴰⵡⴰⵏ."),
-    "إعداد قفل الخصوصية" to listOf("Set privacy lock", "Configurer le verrou de confidentialité", "ⵙⵏⵓⵍⴼⵓ ⴰⵎⵙⴰⵔ"),
     "رمز PIN جديد" to listOf("New PIN", "Nouveau code PIN", "PIN ⴰⵎⴰⵢⵏⵓ"),
     "حفظ الرمز" to listOf("Save PIN", "Enregistrer le code", "ⵙⴽⵍⵙ ⴰⵏⴰⵍ"),
     "إغلاق المعاينة" to listOf("Close preview", "Fermer l’aperçu", "ⵎⴷⵍ ⵜⴰⵙⵎⵓⵔⵔⵉ"),
