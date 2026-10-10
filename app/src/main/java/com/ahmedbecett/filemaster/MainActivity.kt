@@ -30,6 +30,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.BufferedInputStream
 import java.util.zip.ZipInputStream
+import java.util.zip.ZipEntry
+import java.util.zip.ZipOutputStream
 
 private val Ink = Color(0xFF101522)
 private val Panel = Color(0xFF1B2434)
@@ -81,6 +83,38 @@ private fun FileMasterApp() {
             } catch (_: SecurityException) { }
             status = "تم اختيار مجلد الحفظ. اضغط «فك الضغط الآن»."
             success = false
+        }
+    }
+
+    val browsePicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
+        if (uri != null) {
+            try {
+                context.contentResolver.takePersistableUriPermission(
+                    uri, Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+                )
+            } catch (_: SecurityException) { }
+            browseFolder = DocumentFile.fromTreeUri(context, uri)
+            browseFiles = browseFolder?.listFiles()?.sortedWith(
+                compareBy<DocumentFile> { !it.isDirectory }.thenBy { it.name.orEmpty().lowercase() }
+            ) ?: emptyList()
+            zipSelection = emptySet()
+            status = "تم فتح مجلد الذاكرة. اضغط على مجلد للدخول أو حدد ملفات لإنشاء ZIP."
+            success = true
+        }
+    }
+
+    val zipCreator = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri ->
+        if (uri != null && zipSources.isNotEmpty()) {
+            busy = true
+            status = "جارٍ إنشاء أرشيف ZIP…"
+            val sources = zipSources
+            scope.launch {
+                val result = withContext(Dispatchers.IO) { createZipArchive(context, sources, uri) }
+                busy = false
+                success = result.startsWith("تم إنشاء")
+                status = result
+                zipSources = emptyList()
+            }
         }
     }
 
@@ -304,6 +338,38 @@ private fun ActionCard(
             OutlinedButton(onClick = onClick, shape = RoundedCornerShape(14.dp)) { Text(buttonText) }
         }
     }
+}
+
+private fun createZipArchive(context: android.content.Context, sources: List<DocumentFile>, uri: Uri): String {
+    var count = 0
+    return try {
+        val output = context.contentResolver.openOutputStream(uri, "w")
+            ?: return "تعذر إنشاء ملف ZIP."
+        output.use { raw ->
+            ZipOutputStream(BufferedOutputStream(raw)).use { zip ->
+                for (source in sources) count += addDocumentToZip(context, zip, source, source.name ?: "file")
+            }
+        }
+        "تم إنشاء أرشيف ZIP بنجاح، عدد الملفات: " + count
+    } catch (e: Exception) {
+        "فشل إنشاء ZIP: " + (e.localizedMessage ?: "خطأ غير معروف")
+    }
+}
+
+private fun addDocumentToZip(context: android.content.Context, zip: ZipOutputStream, source: DocumentFile, path: String): Int {
+    val safePath = path.trimStart('/')
+    if (source.isDirectory) {
+        zip.putNextEntry(ZipEntry(safePath + "/"))
+        zip.closeEntry()
+        var count = 0
+        for (child in source.listFiles()) count += addDocumentToZip(context, zip, child, safePath + "/" + (child.name ?: "file"))
+        return count
+    }
+    zip.putNextEntry(ZipEntry(safePath))
+    context.contentResolver.openInputStream(source.uri)?.use { input -> input.copyTo(zip, 32768) }
+        ?: throw IllegalStateException("تعذرت قراءة الملف: " + path)
+    zip.closeEntry()
+    return 1
 }
 
 private fun extractZipSafely(context: android.content.Context, archiveUri: Uri, destinationUri: Uri): String {
