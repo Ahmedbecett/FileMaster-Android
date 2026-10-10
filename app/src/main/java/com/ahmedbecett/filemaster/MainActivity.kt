@@ -242,7 +242,7 @@ private fun FileMasterApp() {
                                     ) {
                                         Icon(if (file.isDirectory) Icons.Default.FolderOpen else Icons.Default.InsertDriveFile, contentDescription = null, tint = Accent)
                                         Text(file.name ?: "بدون اسم", modifier = Modifier.weight(1f).padding(start = 8.dp), maxLines = 1, color = Color(0xFFE0E6EF))
-                                        if (!file.isDirectory) Checkbox(
+                                        Checkbox(
                                             checked = file.uri.toString() in zipSelection,
                                             onCheckedChange = { checked ->
                                                 zipSelection = if (checked) zipSelection + file.uri.toString() else zipSelection - file.uri.toString()
