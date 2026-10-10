@@ -51,6 +51,8 @@ import com.google.android.gms.ads.AdRequest
 import com.google.android.gms.ads.AdSize
 import com.google.android.gms.ads.AdView
 import com.google.android.gms.ads.MobileAds
+import com.google.android.ump.ConsentRequestParameters
+import com.google.android.ump.UserMessagingPlatform
 import com.google.mlkit.vision.codescanner.GmsBarcodeScanning
 import androidx.documentfile.provider.DocumentFile
 import kotlinx.coroutines.Dispatchers
@@ -62,23 +64,93 @@ import java.util.zip.ZipInputStream
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 
-private var Ink by mutableStateOf(Color(0xFF101522))
-private var Panel by mutableStateOf(Color(0xFF1B2434))
-private var Accent by mutableStateOf(Color(0xFF79E0C3))
-private var Muted by mutableStateOf(Color(0xFFADB8C8))
+private var Ink by mutableStateOf(Color(0xFF0B1020))
+private var Panel by mutableStateOf(Color(0xFF151F38))
+private var Accent by mutableStateOf(Color(0xFF8A7CFF))
+private var Muted by mutableStateOf(Color(0xFFA9B5D0))
 
 private fun setFileMasterPalette(dark: Boolean) {
     if (dark) {
-        Ink = Color(0xFF101522); Panel = Color(0xFF1B2434); Accent = Color(0xFF79E0C3); Muted = Color(0xFFADB8C8)
+        Ink = Color(0xFF0B1020)
+        Panel = Color(0xFF151F38)
+        Accent = Color(0xFF8A7CFF)
+        Muted = Color(0xFFA9B5D0)
     } else {
-        Ink = Color(0xFFF4F7FB); Panel = Color(0xFFFFFFFF); Accent = Color(0xFF087F6C); Muted = Color(0xFF526174)
+        Ink = Color(0xFFF3F5FF)
+        Panel = Color(0xFFFFFFFF)
+        Accent = Color(0xFF4F46E5)
+        Muted = Color(0xFF596780)
+    }
+}
+
+private suspend fun measureCpuUsagePercent(): Double? {
+    fun snapshot(): Pair<Long, Long>? {
+        val fields = try {
+            java.io.File("/proc/stat").bufferedReader().use { it.readLine() }
+                .trim().split(Regex("\\s+"))
+        } catch (_: Exception) { return null }
+        if (fields.firstOrNull() != "cpu") return null
+        val ticks = fields.drop(1).mapNotNull { it.toLongOrNull() }
+        if (ticks.size < 4) return null
+        val total = ticks.sum()
+        val idle = ticks.getOrElse(3) { 0L } + ticks.getOrElse(4) { 0L }
+        return total to idle
+    }
+    val first = snapshot() ?: return null
+    kotlinx.coroutines.delay(450)
+    val second = snapshot() ?: return null
+    val totalDelta = second.first - first.first
+    val idleDelta = second.second - first.second
+    if (totalDelta <= 0) return null
+    return (((totalDelta - idleDelta).toDouble() / totalDelta) * 100.0).coerceIn(0.0, 100.0)
+}
+
+private fun measureInternetDownloadMbps(): Double? {
+    var connection: java.net.HttpURLConnection? = null
+    return try {
+        connection = java.net.URL("https://speed.cloudflare.com/__down?bytes=1000000")
+            .openConnection() as java.net.HttpURLConnection
+        connection.connectTimeout = 6000
+        connection.readTimeout = 6000
+        connection.requestMethod = "GET"
+        connection.useCaches = false
+        val start = System.nanoTime()
+        var bytes = 0L
+        connection.inputStream.use { input ->
+            val buffer = ByteArray(8192)
+            while (bytes < 1_000_000L) {
+                val read = input.read(buffer, 0, minOf(buffer.size.toLong(), 1_000_000L - bytes).toInt())
+                if (read <= 0) break
+                bytes += read
+            }
+        }
+        val seconds = ((System.nanoTime() - start).coerceAtLeast(1L)).toDouble() / 1_000_000_000.0
+        if (bytes == 0L || seconds <= 0.0) null else (bytes * 8.0 / seconds / 1_000_000.0)
+    } catch (_: Exception) {
+        null
+    } finally {
+        connection?.disconnect()
     }
 }
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        MobileAds.initialize(this)
+        val consentInformation = UserMessagingPlatform.getConsentInformation(this)
+        val consentParameters = ConsentRequestParameters.Builder().build()
+        consentInformation.requestConsentInfoUpdate(
+            this,
+            consentParameters,
+            {
+                UserMessagingPlatform.loadAndShowConsentFormIfRequired(this) {
+                    MobileAds.initialize(this)
+                }
+            },
+            {
+                // Ads SDK still initializes if the consent-info request fails; serving remains subject to Google policy.
+                MobileAds.initialize(this)
+            }
+        )
         setContent { FileMasterApp() }
     }
 }
@@ -227,6 +299,8 @@ private fun FileMasterApp() {
     var settingsOpen by remember { mutableStateOf(false) }
     var privacyOpen by remember { mutableStateOf(false) }
     var deviceInfoOpen by remember { mutableStateOf(false) }
+    var deviceMetrics by remember { mutableStateOf("اضغط على زر القياس لقراءة CPU وسرعة التنزيل.") }
+    var measuringMetrics by remember { mutableStateOf(false) }
     var qrResult by remember { mutableStateOf<String?>(null) }
     fun tr(text: String): String = fileMasterText(text, language)
     val scope = rememberCoroutineScope()
@@ -958,8 +1032,15 @@ private fun FileMasterApp() {
                             Text(if (darkMode) "التبديل إلى المظهر الفاتح" else "التبديل إلى المظهر الداكن")
                         }
                         OutlinedButton(onClick = { settingsOpen = false; privacyOpen = true }, modifier = Modifier.fillMaxWidth()) {
-                            Text("سياسة الخصوصية")
+                            Text("ملخص الخصوصية")
                         }
+                        OutlinedButton(
+                            onClick = {
+                                val policyIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/Ahmedbecett/FileMaster-Android/blob/main/PRIVACY.md"))
+                                runCatching { context.startActivity(policyIntent) }
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) { Text("فتح سياسة الخصوصية المنشورة") }
                         OutlinedButton(onClick = { settingsOpen = false; deviceInfoOpen = true }, modifier = Modifier.fillMaxWidth()) {
                             Text("معلومات الجهاز والذاكرة")
                         }
@@ -980,10 +1061,39 @@ private fun FileMasterApp() {
             val am = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
             val mi = ActivityManager.MemoryInfo().also { am.getMemoryInfo(it) }
             AlertDialog(
-                onDismissRequest = { deviceInfoOpen = false },
+                onDismissRequest = { if (!measuringMetrics) deviceInfoOpen = false },
                 title = { Text("معلومات الجهاز") },
-                text = { Text("الذاكرة الكلية: " + formatFileSize(mi.totalMem) + "\nالذاكرة المتاحة حالياً: " + formatFileSize(mi.availMem) + "\nالذاكرة المستخدمة تقريبياً: " + formatFileSize((mi.totalMem - mi.availMem).coerceAtLeast(0)) + "\n\nلا تعرض هذه الشاشة نسبة CPU أو سرعة الإنترنت الحية؛ يلزم تنفيذ قياس مستقل موثوق لهما.") },
-                confirmButton = { TextButton(onClick = { deviceInfoOpen = false }) { Text("إغلاق") } }
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Text("الذاكرة الكلية: " + formatFileSize(mi.totalMem))
+                        Text("الذاكرة المتاحة حالياً: " + formatFileSize(mi.availMem))
+                        Text("الذاكرة المستخدمة تقريبياً: " + formatFileSize((mi.totalMem - mi.availMem).coerceAtLeast(0)))
+                        HorizontalDivider()
+                        Text(deviceMetrics, color = Muted, style = MaterialTheme.typography.bodyMedium)
+                        Text("اختبار الإنترنت ينزّل حتى 1 ميغابايت عند الضغط على الزر.", color = Muted, style = MaterialTheme.typography.bodySmall)
+                        if (measuringMetrics) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                        Button(
+                            enabled = !measuringMetrics,
+                            onClick = {
+                                measuringMetrics = true
+                                deviceMetrics = "جارٍ قياس استخدام المعالج وسرعة التنزيل…"
+                                scope.launch {
+                                    val result = withContext(Dispatchers.IO) {
+                                        val cpu = measureCpuUsagePercent()
+                                        val speed = measureInternetDownloadMbps()
+                                        val cpuText = cpu?.let { String.format(java.util.Locale.US, "%.1f%%", it) } ?: "غير متاح"
+                                        val speedText = speed?.let { String.format(java.util.Locale.US, "%.2f Mbps", it) } ?: "تعذر القياس؛ تحقق من اتصال الإنترنت"
+                                        "استخدام CPU التقريبي: $cpuText\nسرعة التنزيل التقريبية: $speedText"
+                                    }
+                                    deviceMetrics = result
+                                    measuringMetrics = false
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) { Text(if (measuringMetrics) "جارٍ القياس…" else "قياس CPU وسرعة الإنترنت") }
+                    }
+                },
+                confirmButton = { TextButton(enabled = !measuringMetrics, onClick = { deviceInfoOpen = false }) { Text("إغلاق") } }
             )
         }
         if (managerDialog == "delete") {

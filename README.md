@@ -6,11 +6,11 @@
 
 ## Download the Android APK
 
-**[⬇️ Download the latest successful debug APK from GitHub Actions](https://github.com/Ahmedbecett/FileMaster-Android/releases/latest/download/app-debug.apk)**
+**[⬇️ View all FileMaster builds and releases](https://github.com/Ahmedbecett/FileMaster-Android/releases)**
 
 The link downloads the APK directly from the latest GitHub Release. After downloading, open the APK on your Android phone and follow the installation prompts. Android may ask you to allow installation from that source.
 
-> **Download note:** This is a development/debug build, not a production-ready release. The stable link above points to the APK attached to the latest GitHub Release. The workflow publishes a release automatically after a successful build on the `main` branch; the link will work once that release has been created.
+> **Release note:** Development APKs are marked as prereleases and must not be treated as production releases. A signed production APK is attached only after signing secrets are configured and `apksigner` verification succeeds.
 
 ## Features currently implemented
 
@@ -35,10 +35,10 @@ The link downloads the APK directly from the latest GitHub Release. After downlo
 - **Hide/unhide selected items:** Move chosen files or folders into a dot-prefixed .FileMasterHidden folder and restore them from the hidden-items view. This hides them from FileMaster's normal list but does not encrypt them or prevent other file managers from accessing them.
 - **PIN privacy lock:** Optional numeric PIN gates the app interface. It does not encrypt the underlying files, and this is not a substitute for Android device security.
 - **QR/barcode scanner:** Uses Google Play services Code Scanner.
-- **Device information:** Shows total and currently available RAM. It does not currently report live CPU percentage or a measured internet-speed test.
+- **Device information:** Shows total and available RAM, and provides an on-demand approximate CPU usage reading and a download-speed estimate (downloads up to 1 MB from Cloudflare only when the user taps the test button). Results vary by device and network and are not a laboratory speed test.
 - **Safe junk scan:** Flags common temporary/log/backup-download file extensions in the currently selected folder for review. It never auto-deletes; using Delete sends selected candidates to the app-managed Trash.
 - **Sharing:** Send selected files through Android's share sheet to installed Bluetooth/Wi-Fi apps, or start a temporary read-only HTTP server on the local network to let nearby devices download selected files using a browser. Stop LAN sharing when finished; anyone with the URL on that network can access the selected files. Built-in FTP is not implemented.
-- **Settings and privacy summary:** Includes language controls, developer contact, and a privacy-policy summary. A complete public legal policy and ad-consent flow are still needed before production release.
+- **Settings and privacy:** Includes language controls, developer contact, an in-app privacy summary, a public privacy policy, and a Google UMP consent request before ad initialization. Configure and test the required consent messages in AdMob before release.
 - **Android-native app:** Kotlin + Jetpack Compose, with FileMaster branding and launcher icon.
 - **Automated builds:** GitHub Actions builds a debug APK and publishes it as an artifact.
 
@@ -69,12 +69,23 @@ The link downloads the APK directly from the latest GitHub Release. After downlo
 4. Add operation progress/cancellation and more robust rollback/cleanup after failed extraction or interrupted Trash operations.
 5. Extend in-app previews to audio, video, and PDF/document files.
 6. Review LAN-sharing security and add optional authenticated transfer; add FTP only if it can be implemented and tested safely.
-7. Add automated tests and prepare a signed production release with privacy disclosures and ad consent handling.
+7. Add automated tests, configure AdMob consent messages, verify privacy disclosures, and test the signed release on physical Android devices.
 
 ## Build from source
 
-The GitHub Actions workflow installs JDK 17, Gradle 8.11.1 and Android SDK 35, then runs `gradle --no-daemon assembleDebug`. Open the project in Android Studio with JDK 17 and Android SDK 35 to build locally.
+The GitHub Actions workflow installs JDK 17, Gradle 8.11.1 and Android SDK 35. It builds a debug APK for testing. It builds and publishes a signed release APK only when all four signing secrets exist:
+
+- `FILEMASTER_KEYSTORE_BASE64`: Base64-encoded JKS/PKCS12 keystore file.
+- `FILEMASTER_STORE_PASSWORD`: keystore password.
+- `FILEMASTER_KEY_ALIAS`: alias of the release key.
+- `FILEMASTER_KEY_PASSWORD`: key password.
+
+Generate a persistent release keystore on a trusted machine (never commit it to this public repository), encode it as a single-line Base64 value, and add these four values under **GitHub → Settings → Secrets and variables → Actions**. Keep a secure offline backup of the keystore and passwords: losing the signing key can prevent future updates from being accepted as the same app. Do not use a temporary CI-generated key for production.
+
+Open the project in Android Studio with JDK 17 and Android SDK 35 to build locally.
 
 ## Maintainer
 
-**Ahmedbecett**
+**Ahmedbecetti**
+
+Support: ahmedbecetti41@gmail.com

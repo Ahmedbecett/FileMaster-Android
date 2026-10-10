@@ -4,6 +4,12 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
 }
 
+val releaseStorePassword = System.getenv("FILEMASTER_STORE_PASSWORD")
+val releaseKeyPassword = System.getenv("FILEMASTER_KEY_PASSWORD")
+val releaseKeyAlias = System.getenv("FILEMASTER_KEY_ALIAS")
+val releaseSigningConfigured = !releaseStorePassword.isNullOrBlank() &&
+    !releaseKeyPassword.isNullOrBlank() && !releaseKeyAlias.isNullOrBlank()
+
 android {
     namespace = "com.ahmedbecett.filemaster"
     compileSdk = 35
@@ -11,8 +17,24 @@ android {
         applicationId = "com.ahmedbecett.filemaster"
         minSdk = 23
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = 2
+        versionName = "1.1.0"
+    }
+    signingConfigs {
+        create("release") {
+            storeFile = file("filemaster-release.jks")
+            storePassword = releaseStorePassword
+            keyAlias = releaseKeyAlias
+            keyPassword = releaseKeyPassword
+        }
+    }
+    buildTypes {
+        getByName("release") {
+            isMinifyEnabled = false
+            if (releaseSigningConfigured) {
+                signingConfig = signingConfigs.getByName("release")
+            }
+        }
     }
     buildFeatures { compose = true }
     compileOptions {
@@ -34,6 +56,7 @@ dependencies {
     implementation("androidx.documentfile:documentfile:1.0.1")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
     implementation("com.google.android.gms:play-services-ads:24.2.0")
+    implementation("com.google.android.ump:user-messaging-platform:3.2.0")
     implementation("com.google.android.gms:play-services-code-scanner:16.1.0")
     implementation("org.apache.commons:commons-compress:1.27.1")
     implementation("com.github.junrar:junrar:7.5.5")
