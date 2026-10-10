@@ -676,6 +676,23 @@ private fun FileMasterApp() {
                         }, modifier = Modifier.fillMaxWidth()) {
                             Text(if (lanServer == null) "مشاركة الملفات عبر الشبكة المحلية" else "إيقاف مشاركة الشبكة المحلية")
                         }
+                        OutlinedButton(onClick = {
+                            val junkExtensions = setOf("tmp", "temp", "log", "bak", "old", "part", "crdownload", "cache")
+                            val candidates = browseFiles.filter { file ->
+                                if (file.isDirectory || file.name == ".FileMasterTrash" || file.name == ".FileMasterHidden") false
+                                else {
+                                    val name = file.name.orEmpty().lowercase()
+                                    val ext = name.substringAfterLast('.', "")
+                                    ext in junkExtensions || name == "thumbs.db" || name == ".ds_store" || name.startsWith("~$")
+                                }
+                            }
+                            zipSelection = candidates.map { it.uri.toString() }.toSet()
+                            status = if (candidates.isEmpty()) "لم يُعثر على ملفات مؤقتة واضحة في المجلد الحالي."
+                                else "عُثر على " + candidates.size + " ملفاً مرشحاً للتنظيف. راجع العناصر المحددة؛ زر الحذف ينقلها إلى سلة المحذوفات."
+                            success = candidates.isEmpty()
+                        }, modifier = Modifier.fillMaxWidth()) {
+                            Text("فحص الملفات المؤقتة بأمان")
+                        }
                     }
                 }
                 
