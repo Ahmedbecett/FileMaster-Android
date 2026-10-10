@@ -9,6 +9,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -26,10 +27,13 @@ import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
+import androidx.compose.ui.window.Dialog
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -192,6 +196,9 @@ private fun FileMasterApp() {
     var moveOperation by remember { mutableStateOf(false) }
     var trashMode by remember { mutableStateOf(false) }
     var trashReturnFolder by remember { mutableStateOf<DocumentFile?>(null) }
+    var previewBitmap by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
+    var previewTitle by remember { mutableStateOf("") }
+    var previewLoading by remember { mutableStateOf(false) }
 
     val zipPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
@@ -452,13 +459,27 @@ private fun FileMasterApp() {
                                                 val fileName = file.name ?: "file"
                                                 recentUris = (listOf(file.uri.toString()) + recentUris.filterNot { it == file.uri.toString() }).take(20)
                                                 preferences.edit().putString("recent", recentUris.joinToString("\n")).apply()
-                                                if (fileName.lowercase().endsWith(".zip")) {
+                                                val extension = fileName.substringAfterLast('.', "").lowercase()
+                                                if (extension == "zip") {
                                                     selectedZip = file.uri
                                                     selectedName = fileName
                                                     status = tr("تم اختيار ") + fileName + tr(". استخدم زر فك الضغط لاستخراجه.")
                                                     success = true
+                                                } else if (extension in setOf("jpg", "jpeg", "png", "webp", "bmp", "gif")) {
+                                                    previewTitle = fileName
+                                                    previewBitmap = null
+                                                    previewLoading = true
+                                                    scope.launch {
+                                                        val bitmap = withContext(Dispatchers.IO) {
+                                                            try { context.contentResolver.openInputStream(file.uri)?.use { android.graphics.BitmapFactory.decodeStream(it) } }
+                                                            catch (_: Exception) { null }
+                                                        }
+                                                        previewBitmap = bitmap
+                                                        previewLoading = false
+                                                        status = if (bitmap != null) tr("تم فتح المعاينة: ") + fileName else tr("تعذرت معاينة الصورة.")
+                                                        success = bitmap != null
+                                                    }
                                                 } else {
-                                                    val extension = fileName.substringAfterLast('.', "").lowercase()
                                                     val mime = MimeTypeMap.getSingleton().getMimeTypeFromExtension(extension) ?: "*/*"
                                                     try {
                                                         context.startActivity(Intent(Intent.ACTION_VIEW).setDataAndType(file.uri, mime).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION))
@@ -606,6 +627,34 @@ private fun FileMasterApp() {
                     tr("النسخة 1.0 • صُمّم بواسطة Ahmedbecett"),
                     modifier = Modifier.fillMaxWidth(), color = Muted, style = MaterialTheme.typography.labelSmall
                 )
+            }
+        }
+        if (previewLoading || previewBitmap != null) {
+            Dialog(onDismissRequest = { previewBitmap = null; previewTitle = ""; previewLoading = false }) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = Panel),
+                    shape = RoundedCornerShape(20.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth().padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(previewTitle, color = Color(0xFFF4F7FB), fontWeight = FontWeight.Bold, maxLines = 2)
+                        when {
+                            previewLoading -> CircularProgressIndicator(color = Accent)
+                            previewBitmap != null -> Image(
+                                bitmap = previewBitmap!!.asImageBitmap(),
+                                contentDescription = previewTitle,
+                                modifier = Modifier.fillMaxWidth().heightIn(max = 520.dp),
+                                contentScale = ContentScale.Fit
+                            )
+                            else -> Text(tr("تعذرت معاينة الصورة."), color = Muted)
+                        }
+                        TextButton(onClick = { previewBitmap = null; previewTitle = ""; previewLoading = false }) { Text(tr("إغلاق المعاينة")) }
+                    }
+                }
             }
         }
         if (managerDialog == "mkdir" || managerDialog == "rename") {
