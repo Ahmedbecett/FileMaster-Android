@@ -51,6 +51,8 @@ import com.google.android.gms.ads.AdRequest
 import com.google.android.gms.ads.AdSize
 import com.google.android.gms.ads.AdView
 import com.google.android.gms.ads.MobileAds
+import com.google.android.ump.ConsentRequestParameters
+import com.google.android.ump.UserMessagingPlatform
 import com.google.mlkit.vision.codescanner.GmsBarcodeScanning
 import androidx.documentfile.provider.DocumentFile
 import kotlinx.coroutines.Dispatchers
@@ -134,7 +136,21 @@ private fun measureInternetDownloadMbps(): Double? {
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        MobileAds.initialize(this)
+        val consentInformation = UserMessagingPlatform.getConsentInformation(this)
+        val consentParameters = ConsentRequestParameters.Builder().build()
+        consentInformation.requestConsentInfoUpdate(
+            this,
+            consentParameters,
+            {
+                UserMessagingPlatform.loadAndShowConsentFormIfRequired(this) {
+                    MobileAds.initialize(this)
+                }
+            },
+            {
+                // Ads SDK still initializes if the consent-info request fails; serving remains subject to Google policy.
+                MobileAds.initialize(this)
+            }
+        )
         setContent { FileMasterApp() }
     }
 }
