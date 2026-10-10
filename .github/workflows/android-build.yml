@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build:
@@ -71,6 +71,20 @@ jobs:
           name: FileMaster-debug-apk
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
+
+      - name: Publish permanent GitHub Release download
+        if: success() && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v0.1.0-dev.${{ github.run_number }}
+          name: FileMaster Development Build ${{ github.run_number }}
+          body: |
+            Development/debug APK for FileMaster by Ahmedbecett.
+
+            **Work in progress:** This is a development build, not a production release. Test carefully and back up important files.
+          files: app/build/outputs/apk/debug/app-debug.apk
+          prerelease: false
+          make_latest: true
 
       - name: Upload build reports for diagnosis
         if: always()
