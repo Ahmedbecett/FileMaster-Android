@@ -201,19 +201,20 @@ private fun extractRar(context: Context, uri: Uri, root: DocumentFile): String {
                 val directory = header.isDirectory
                 val target = archiveTarget(root, entryName, directory)
                 if (!directory && target != null) {
-                    val counted = object : OutputStream() {
-                        override fun write(value: Int) {
-                            budget.addBytes(1)
-                            context.contentResolver.openOutputStream(target.uri, "wa")?.use { it.write(value) }
-                                ?: throw IOException("تعذرت الكتابة إلى الملف.")
+                    context.contentResolver.openOutputStream(target.uri, "w")?.use { output ->
+                        val counted = object : OutputStream() {
+                            override fun write(value: Int) {
+                                budget.addBytes(1)
+                                output.write(value)
+                            }
+                            override fun write(buffer: ByteArray, offset: Int, length: Int) {
+                                budget.addBytes(length)
+                                output.write(buffer, offset, length)
+                            }
+                            override fun flush() = output.flush()
                         }
-                        override fun write(buffer: ByteArray, offset: Int, length: Int) {
-                            budget.addBytes(length)
-                            context.contentResolver.openOutputStream(target.uri, "wa")?.use { it.write(buffer, offset, length) }
-                                ?: throw IOException("تعذرت الكتابة إلى الملف.")
-                        }
-                    }
-                    counted.use { archive.extractFile(header, it) }
+                        archive.extractFile(header, counted)
+                    } ?: throw IOException("تعذرت الكتابة إلى الملف.")
                     files++
                 }
                 header = archive.nextFileHeader()
