@@ -215,6 +215,10 @@ private fun FileMasterApp() {
     var previewBitmap by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
     var previewTitle by remember { mutableStateOf("") }
     var previewLoading by remember { mutableStateOf(false) }
+    var privacyPinHash by remember { mutableStateOf(preferences.getString("privacy_pin_hash", null)) }
+    var isLocked by remember { mutableStateOf(privacyPinHash != null) }
+    var pinEntry by remember { mutableStateOf("") }
+    var pinError by remember { mutableStateOf("") }
 
     val zipPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
@@ -300,6 +304,31 @@ private fun FileMasterApp() {
         primary = Accent, onPrimary = Ink, background = Ink, surface = Panel,
         onSurface = Color(0xFFF4F7FB), secondary = Muted
     )) {
+        if (isLocked) {
+            Column(
+                modifier = Modifier.fillMaxSize().background(Ink).padding(24.dp),
+                verticalArrangement = Arrangement.Center,
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Icon(Icons.Default.Storage, contentDescription = null, tint = Accent, modifier = Modifier.size(56.dp))
+                Spacer(Modifier.height(16.dp))
+                Text("FileMaster", color = Color(0xFFF4F7FB), style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+                Text(tr("أدخل رمز الخصوصية لفتح ملفاتك"), color = Muted)
+                Spacer(Modifier.height(16.dp))
+                OutlinedTextField(value = pinEntry, onValueChange = { pinEntry = it; pinError = "" }, label = { Text(tr("رمز PIN")) }, singleLine = true)
+                if (pinError.isNotBlank()) Text(pinError, color = Color(0xFFFF8A80))
+                Button(onClick = {
+                    if (hashPrivacyPin(pinEntry) == privacyPinHash) { isLocked = false; pinEntry = ""; pinError = "" }
+                    else pinError = tr("الرمز غير صحيح.")
+                }, modifier = Modifier.fillMaxWidth()) { Text(tr("فتح التطبيق")) }
+                TextButton(onClick = {
+                    if (hashPrivacyPin(pinEntry) == privacyPinHash) {
+                        preferences.edit().remove("privacy_pin_hash").apply()
+                        privacyPinHash = null; isLocked = false; pinEntry = ""; pinError = ""
+                    } else pinError = tr("أدخل الرمز الصحيح لإزالة القفل.")
+                }) { Text(tr("إزالة القفل باستخدام الرمز")) }
+            }
+        } else {
         Scaffold(
             containerColor = Ink,
             topBar = {
@@ -311,6 +340,10 @@ private fun FileMasterApp() {
                         }
                     },
                     actions = {
+                        TextButton(onClick = {
+                            if (privacyPinHash == null) { managerName = ""; pinError = ""; managerDialog = "pinSetup" }
+                            else { pinEntry = ""; pinError = ""; isLocked = true }
+                        }) { Text(if (privacyPinHash == null) tr("إعداد القفل") else tr("قفل الخصوصية"), color = Accent) }
                         Box {
                             TextButton(onClick = { languageMenuOpen = true }) { Text(tr("اللغة") + ": " + fileMasterLanguageName(language), color = Accent) }
                             DropdownMenu(expanded = languageMenuOpen, onDismissRequest = { languageMenuOpen = false }) {
@@ -673,6 +706,54 @@ private fun FileMasterApp() {
                 }
             }
         }
+        if (managerDialog == "pinSetup") {
+            AlertDialog(
+                onDismissRequest = { managerDialog = ""; managerName = "" },
+                title = { Text(tr("إعداد قفل الخصوصية")) },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(tr("أنشئ رمزاً من 4 أرقام على الأقل. هذا القفل يحجب واجهة التطبيق، لكنه لا يشفر الملفات نفسها."), color = Muted)
+                        OutlinedTextField(value = managerName, onValueChange = { managerName = it.filter(Char::isDigit).take(12) }, label = { Text(tr("رمز PIN جديد")) }, singleLine = true)
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = {
+                        if (managerName.length < 4) pinError = tr("يجب أن يتكون الرمز من 4 أرقام على الأقل.")
+                        else {
+                            val hash = hashPrivacyPin(managerName)
+                            preferences.edit().putString("privacy_pin_hash", hash).apply()
+                            privacyPinHash = hash
+                            managerName = ""
+                            managerDialog = ""
+                            pinError = ""
+                            status = tr("تم إعداد قفل الخصوصية.")
+                            success = true
+                        }
+                    }) { Text(tr("حفظ الرمز")) }
+                },
+                dismissButton = { TextButton(onClick = { managerDialog = ""; managerName = ""; pinError = "" }) { Text(tr("إلغاء")) } }
+            )
+        }
+        if (managerDialog == "pinDisable") {
+            AlertDialog(
+                onDismissRequest = { managerDialog = ""; managerName = "" },
+                title = { Text(tr("إزالة قفل الخصوصية")) },
+                text = { OutlinedTextField(value = managerName, onValueChange = { managerName = it.filter(Char::isDigit).take(12) }, label = { Text(tr("رمز PIN الحالي")) }, singleLine = true) },
+                confirmButton = {
+                    TextButton(onClick = {
+                        if (hashPrivacyPin(managerName) == privacyPinHash) {
+                            preferences.edit().remove("privacy_pin_hash").apply()
+                            privacyPinHash = null
+                            managerName = ""
+                            managerDialog = ""
+                            status = tr("تمت إزالة قفل الخصوصية.")
+                            success = true
+                        } else pinError = tr("الرمز غير صحيح.")
+                    }) { Text(tr("إزالة القفل")) }
+                },
+                dismissButton = { TextButton(onClick = { managerDialog = ""; managerName = ""; pinError = "" }) { Text(tr("إلغاء")) } }
+            )
+        }
         if (managerDialog == "mkdir" || managerDialog == "rename") {
             AlertDialog(
                 onDismissRequest = { managerDialog = "" },
@@ -721,6 +802,7 @@ private fun FileMasterApp() {
                 dismissButton = { TextButton(onClick = { managerDialog = "" }) { Text(tr("إلغاء")) } }
             )
         }
+        }
     }
 }
 
@@ -768,6 +850,12 @@ private fun ActionCard(
             OutlinedButton(onClick = onClick, shape = RoundedCornerShape(14.dp)) { Text(buttonText) }
         }
     }
+}
+
+private fun hashPrivacyPin(pin: String): String {
+    val input = "FileMaster::PrivacyLock::v1:" + pin
+    val bytes = java.security.MessageDigest.getInstance("SHA-256").digest(input.toByteArray(Charsets.UTF_8))
+    return bytes.joinToString("") { "%02x".format(it) }
 }
 
 private fun getOrCreateTrashFolder(parent: DocumentFile): DocumentFile? {
