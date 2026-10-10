@@ -6,11 +6,11 @@
 
 ## Download the Android APK
 
-**[⬇️ Download the latest successful debug APK from GitHub Actions](https://github.com/Ahmedbecett/FileMaster-Android/actions/runs/38013713808)**
+**[⬇️ Download the latest successful debug APK from GitHub Actions](https://github.com/Ahmedbecett/FileMaster-Android/releases/latest/download/app-debug.apk)**
 
-Open the workflow run, scroll to **Artifacts**, and download **FileMaster-debug-apk**. Extract the ZIP archive to get the APK, then install it on your Android phone. Android may ask you to allow installation from that source.
+The link downloads the APK directly from the latest GitHub Release. After downloading, open the APK on your Android phone and follow the installation prompts. Android may ask you to allow installation from that source.
 
-> **Download note:** This is a development/debug build, not a production release. GitHub Actions artifacts are temporary and may expire; the link above points to the verified build available at the time this README was updated. A permanent APK link will be added with a GitHub Release.
+> **Download note:** This is a development/debug build, not a production-ready release. The stable link above points to the APK attached to the latest GitHub Release. The workflow publishes a release automatically after a successful build on the `main` branch; the link will work once that release has been created.
 
 ## Features currently implemented
 
