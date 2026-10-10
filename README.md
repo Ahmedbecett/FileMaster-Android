@@ -1,32 +1,36 @@
 # FileMaster Android
 
-**FileMaster** is a native Android file manager and archive utility by **Ahmedbecett**. This repository is being built as a real Android app, not a web mockup.
+**FileMaster** is a native Android file manager and archive utility by **Ahmedbecett**. It is built with Kotlin and Jetpack Compose; it is not a web mockup.
 
-## Current foundation
+## Implemented in the current development build
 
-- Native Android app using Kotlin and Jetpack Compose.
-- Arabic-first interface with a dark theme.
-- Android Storage Access Framework for user-selected files and destination folders.
-- ZIP extraction into a user-selected folder.
-- Basic path traversal checks for archive entries.
-- Coroutines keep extraction work off the UI thread.
+- Arabic-first dark interface.
+- Android Storage Access Framework folder picker, scoped to folders the user chooses.
+- Browse folders and files, search within the displayed folder, and view file sizes.
+- Create folders, rename items, and delete selected items.
+- Copy or move selected items to a user-selected destination.
+- Extract ZIP archives into a user-selected destination, with basic archive path traversal checks and limits on entry count and extracted bytes.
+- Create ZIP archives from selected files and folders.
+- GitHub Actions workflow to build a debug APK and upload it as an artifact.
 
-## Planned development
+## Important limitations
 
-1. Improve extraction progress, cancellation, overwrite choices, and large-archive handling.
-2. Add ZIP creation and archive browsing.
-3. Add formats such as 7z, TAR/GZIP, and RAR through suitable libraries, subject to each format's licensing and technical limitations.
-4. Build a complete file browser with search, sorting, copy, move, rename, and delete.
-5. Add media previews and media-file support.
-6. Add tests, accessibility improvements, and release build automation.
+- The current archive engine supports ZIP only. RAR, 7z, TAR and GZIP are planned and are not implemented yet.
+- Copy/move and archive operations should be tested on different Android document providers and with large files before production release.
+- Access to Android system-protected directories is controlled by Android; FileMaster does not bypass those restrictions.
+- The APK is not considered verified until the GitHub Actions build succeeds and the APK is installed and tested on a real device.
 
 ## Build
 
-Open the project in Android Studio with JDK 17 and Android SDK 35, then build the `app` module.
+The GitHub Actions workflow installs JDK 17, Gradle 8.11.1 and Android SDK 35, then runs `gradle --no-daemon assembleDebug`. Open the project in Android Studio with JDK 17 and Android SDK 35 to build locally.
 
-## Storage access
+## Roadmap
 
-FileMaster uses Android's Storage Access Framework so users choose which files and folders the app can access. Android restricts access to certain system and other-app directories; the app does not bypass those protections.
+1. Verify and fix the CI build; add automated tests for archive extraction and file operations.
+2. Improve overwrite handling, progress, cancellation, and very large archive support.
+3. Add RAR, 7z, TAR and GZIP through suitable libraries after checking licenses and compatibility.
+4. Add previews for images, audio, video and documents.
+5. Improve accessibility, sorting, multi-select UX and release packaging.
 
 ## Maintainer
 
