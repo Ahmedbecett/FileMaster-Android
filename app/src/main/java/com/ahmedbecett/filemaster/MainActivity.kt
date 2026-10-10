@@ -952,7 +952,8 @@ private fun FileMasterApp() {
                             val removed = targets.count { it.delete() }
                             tr("حُذف نهائياً ") + removed + tr(" من ") + targets.size + tr(" عنصر.")
                         } else {
-                            val trash = browseFolder?.let { getOrCreateTrashFolder(it) }
+                            val trashParent = if (hiddenMode) hiddenReturnFolder else browseFolder
+                            val trash = trashParent?.let { getOrCreateTrashFolder(it) }
                             if (trash == null) tr("تعذر إنشاء سلة المحذوفات؛ لم تُحذف الملفات.") else moveToTrash(context, targets, trash)
                         }
                         status = result
