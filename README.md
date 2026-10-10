@@ -24,6 +24,8 @@ The link downloads the APK directly from the latest GitHub Release. After downlo
 - **Duplicate scan:** Compare same-size files using SHA-256 to find byte-identical duplicates; scanning never deletes files.
 - **Saved language:** Remember the selected interface language between launches.
 - **File information:** View file names and sizes.
+- **Recoverable Trash (new on the feature branch):** Selected files and folders are copied into a .FileMasterTrash folder inside the currently browsed folder before the originals are removed; selected items can be restored, with collision-safe restored names. Permanent deletion is available from inside Trash. This depends on the selected Android document provider allowing create, read, write, and delete operations.
+- **Built-in image preview (new on the feature branch):** Preview common JPG, JPEG, PNG, WebP, BMP and GIF image files in an in-app dialog. GIF preview displays the decoded still frame, not animation.
 - **Folder management:** Create folders, rename items, and delete selected items.
 - **Copy and move:** Copy or move selected items to a user-selected destination.
 - **ZIP extraction:** Extract ZIP archives to a chosen folder with basic path-traversal checks and limits on entry count and extracted bytes.
@@ -43,9 +45,9 @@ The link downloads the APK directly from the latest GitHub Release. After downlo
 
 - **ZIP only:** RAR, 7z, TAR and GZIP are not implemented yet.
 - **Folder scope:** Overview, quick filters, and duplicate scanning operate on the selected folder's immediate children, not a full-device index. Directory sizes depend on the Android document provider.
-- **Trash and recovery:** Delete currently uses the selected provider directly; recoverable trash is not implemented.
+- **Trash and recovery:** The feature branch now adds a recoverable app-managed Trash for the selected folder. It is not a system-wide recycle bin, and restoration must be tested with each Android document provider.
 - **Privacy lock and local-network transfer:** Not implemented yet.
-- **Integrated previews:** Files are opened using compatible apps; built-in media/PDF previews are not implemented yet.
+- **Integrated previews:** Common still images now have an in-app preview on the feature branch. Audio, video and PDF files still open with compatible installed apps; built-in audio/video/PDF preview is not implemented yet.
 - **Translations:** The four language options have been started, but complete translation coverage, correct right-to-left layout for Arabic, and Tamazight display need real-device testing.
 - **Testing:** Copy/move and archive operations need broader testing across Android versions, document providers, and large files.
 - **Protected folders:** Access to Android system-protected directories is controlled by Android. FileMaster does not bypass these restrictions.
@@ -53,11 +55,11 @@ The link downloads the APK directly from the latest GitHub Release. After downlo
 
 ## Roadmap
 
-1. Verify the latest build and test favorites, recent history, filters, and duplicate scanning on a real Android device.
+1. Build and test the feature branch on a real Android device, especially Trash/restore and image previews across document providers.
 2. Complete Arabic, English, French, and Tamazight translations and right-to-left layout.
 3. Add tested RAR, 7z, TAR and GZIP support with safe extraction limits.
-4. Add recoverable trash, overwrite prompts, operation progress/cancellation, and cleanup after failed extraction.
-5. Add integrated image, audio, video, and document previews.
+4. Add overwrite prompts, operation progress/cancellation, and robust cleanup after failed extraction.
+5. Extend in-app previews to audio, video, and PDF/document files.
 6. Consider an optional privacy lock and secure local-network transfer after permissions and security review.
 7. Add automated tests and prepare a signed production release with privacy disclosures and ad consent handling.
 
