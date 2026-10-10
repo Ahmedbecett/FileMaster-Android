@@ -47,6 +47,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.google.android.gms.ads.AdRequest
@@ -421,7 +422,7 @@ private fun FileMasterApp() {
         }
     }
 
-    MaterialTheme(colorScheme = if (darkMode) darkColorScheme(
+    MaterialTheme(typography = Typography(defaultFontFamily = FontFamily.SansSerif), colorScheme = if (darkMode) darkColorScheme(
         primary = Accent, onPrimary = Color(0xFF06211E), background = Ink, surface = Panel,
         onSurface = Color(0xFFF1F5F9), secondary = Muted
     ) else lightColorScheme(
@@ -1045,16 +1046,23 @@ private fun FileMasterApp() {
                 onDismissRequest = { settingsOpen = false },
                 title = { Text("إعدادات FileMaster") },
                 text = {
-                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Column(Modifier.heightIn(max = 440.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         Text("المطور: Ahmedbecetti")
                         Text("الدعم: ahmedbecetti41@gmail.com")
                         Text("اللغة: " + fileMasterLanguageName(language))
-                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            listOf("ar", "en", "fr", "tz").forEach { lang ->
-                                OutlinedButton(onClick = {
-                                    language = lang
-                                    preferences.edit().putString("language", lang).apply()
-                                }) { Text(fileMasterLanguageName(lang)) }
+                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            listOf(listOf("ar", "en"), listOf("fr", "tz")).forEach { pair ->
+                                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    pair.forEach { lang ->
+                                        OutlinedButton(
+                                            onClick = {
+                                                language = lang
+                                                preferences.edit().putString("language", lang).apply()
+                                            },
+                                            modifier = Modifier.weight(1f)
+                                        ) { Text(fileMasterLanguageName(lang), maxLines = 1) }
+                                    }
+                                }
                             }
                         }
                         OutlinedButton(onClick = { settingsOpen = false; managerName = ""; pinError = ""; managerDialog = "pinSetup" }, modifier = Modifier.fillMaxWidth()) {
