@@ -116,6 +116,60 @@ private fun copyToTemp(context: Context, uri: Uri, suffix: String): File {
     }
 }
 
+fun previewArchiveContents(context: Context, archiveUri: Uri, archiveName: String): String {
+    val name = archiveName.lowercase()
+    val entries = mutableListOf<String>()
+    var total = 0
+    fun add(entryName: String, directory: Boolean) {
+        total++
+        if (entries.size < 100) entries += if (directory) entryName.trimEnd('/') + "/" else entryName
+        if (total > MAX_ARCHIVE_ENTRIES) throw IOException("الأرشيف يحتوي على عدد كبير جداً من العناصر.")
+    }
+    return try {
+        when {
+            name.endsWith(".zip") -> {
+                val raw = context.contentResolver.openInputStream(archiveUri) ?: throw IOException("تعذرت قراءة الأرشيف.")
+                java.util.zip.ZipInputStream(BufferedInputStream(raw)).use { zip ->
+                    var entry = zip.nextEntry
+                    while (entry != null) { add(entry.name, entry.isDirectory); zip.closeEntry(); entry = zip.nextEntry }
+                }
+            }
+            name.endsWith(".tar.gz") || name.endsWith(".tgz") || name.endsWith(".tar") -> {
+                val raw = context.contentResolver.openInputStream(archiveUri) ?: throw IOException("تعذرت قراءة الأرشيف.")
+                val stream = if (name.endsWith(".tar.gz") || name.endsWith(".tgz")) GZIPInputStream(BufferedInputStream(raw)) else BufferedInputStream(raw)
+                TarArchiveInputStream(stream).use { tar ->
+                    var entry = tar.nextTarEntry
+                    while (entry != null) { add(entry.name, entry.isDirectory); entry = tar.nextTarEntry }
+                }
+            }
+            name.endsWith(".gz") -> add(archiveName.substringBeforeLast('.', archiveName), false)
+            name.endsWith(".7z") -> {
+                val temp = copyToTemp(context, archiveUri, ".7z")
+                try {
+                    SevenZFile.builder().setFile(temp).get().use { seven ->
+                        var entry = seven.nextEntry
+                        while (entry != null) { add(entry.name, entry.isDirectory); entry = seven.nextEntry }
+                    }
+                } finally { temp.delete() }
+            }
+            name.endsWith(".rar") -> {
+                val temp = copyToTemp(context, archiveUri, ".rar")
+                try {
+                    Archive(temp).use { archive ->
+                        var header: FileHeader? = archive.nextFileHeader()
+                        while (header != null) { add(header.fileName, header.isDirectory); header = archive.nextFileHeader() }
+                    }
+                } finally { temp.delete() }
+            }
+            else -> throw IOException("صيغة الأرشيف غير مدعومة.")
+        }
+        val listing = if (entries.isEmpty()) "لا توجد عناصر داخل الأرشيف." else entries.joinToString("\n")
+        "عدد العناصر: " + total + (if (total > entries.size) "\n... تم عرض أول " + entries.size + " عنصراً فقط." else "") + "\n\n" + listing
+    } catch (e: Exception) {
+        "تعذرت معاينة الأرشيف: " + (e.localizedMessage ?: "خطأ غير معروف")
+    }
+}
+
 fun extractArchiveSafely(context: Context, archiveUri: Uri, archiveName: String, destinationUri: Uri): String {
     val root = DocumentFile.fromTreeUri(context, destinationUri)
         ?: return "تعذر فتح مجلد الحفظ."
