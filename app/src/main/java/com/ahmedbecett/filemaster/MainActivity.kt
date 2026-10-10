@@ -33,6 +33,7 @@ import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Memory
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Share
@@ -42,6 +43,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
@@ -71,15 +73,15 @@ private var Muted by mutableStateOf(Color(0xFFA9B5D0))
 
 private fun setFileMasterPalette(dark: Boolean) {
     if (dark) {
-        Ink = Color(0xFF0B1020)
-        Panel = Color(0xFF151F38)
-        Accent = Color(0xFF8A7CFF)
-        Muted = Color(0xFFA9B5D0)
+        Ink = Color(0xFF0A111F)
+        Panel = Color(0xFF142033)
+        Accent = Color(0xFF39D7C3)
+        Muted = Color(0xFFA9B7C8)
     } else {
-        Ink = Color(0xFFF3F5FF)
+        Ink = Color(0xFFF3F6FA)
         Panel = Color(0xFFFFFFFF)
-        Accent = Color(0xFF4F46E5)
-        Muted = Color(0xFF596780)
+        Accent = Color(0xFF087F78)
+        Muted = Color(0xFF536579)
     }
 }
 
@@ -304,6 +306,8 @@ private fun FileMasterApp() {
     var qrResult by remember { mutableStateOf<String?>(null) }
     fun tr(text: String): String = fileMasterText(text, language)
     val scope = rememberCoroutineScope()
+    val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
+    val homeScrollState = rememberScrollState()
     var selectedZip by remember { mutableStateOf<Uri?>(null) }
     var selectedName by remember { mutableStateOf<String?>(null) }
     var destination by remember { mutableStateOf<Uri?>(null) }
@@ -419,8 +423,8 @@ private fun FileMasterApp() {
     }
 
     MaterialTheme(colorScheme = if (darkMode) darkColorScheme(
-        primary = Accent, onPrimary = Ink, background = Ink, surface = Panel,
-        onSurface = Color(0xFFF4F7FB), secondary = Muted
+        primary = Accent, onPrimary = Color(0xFF06211E), background = Ink, surface = Panel,
+        onSurface = Color(0xFFF1F5F9), secondary = Muted
     ) else lightColorScheme(
         primary = Accent, onPrimary = Color.White, background = Ink, surface = Panel,
         onSurface = Color(0xFF172033), secondary = Muted
@@ -446,6 +450,38 @@ private fun FileMasterApp() {
                 }) { Text("إزالة القفل باستخدام الرمز") }
             }
         } else {
+        ModalNavigationDrawer(
+            drawerState = drawerState,
+            drawerContent = {
+                ModalDrawerSheet(drawerContainerColor = Panel) {
+                    Column(
+                        Modifier.fillMaxWidth().padding(14.dp).verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(7.dp)
+                    ) {
+                        Box(
+                            Modifier.fillMaxWidth().background(
+                                Brush.linearGradient(listOf(Accent.copy(alpha = 0.24f), Panel)),
+                                RoundedCornerShape(22.dp)
+                            ).padding(18.dp)
+                        ) {
+                            Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                                Icon(Icons.Default.Storage, contentDescription = null, tint = Accent, modifier = Modifier.size(38.dp))
+                                Text("FileMaster", color = Color(0xFFF4F7FB), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                                Text("ملفاتك. جهازك. تحكمك.", color = Muted, style = MaterialTheme.typography.bodySmall)
+                                Text("By Ahmedbecetti", color = Accent, style = MaterialTheme.typography.labelSmall)
+                            }
+                        }
+                        Spacer(Modifier.height(8.dp))
+                        NavigationDrawerItem(icon = { Icon(Icons.Default.FolderOpen, null) }, label = { Text("مستكشف الملفات") }, selected = false, onClick = { scope.launch { drawerState.close() } })
+                        NavigationDrawerItem(icon = { Icon(Icons.Default.Memory, null) }, label = { Text("صحة الهاتف والفحص") }, selected = false, onClick = { scope.launch { drawerState.close(); homeScrollState.animateScrollTo(0) } })
+                        NavigationDrawerItem(icon = { Icon(Icons.Default.Settings, null) }, label = { Text("الإعدادات واللغة") }, selected = false, onClick = { scope.launch { drawerState.close() }; settingsOpen = true })
+                        NavigationDrawerItem(icon = { Icon(Icons.Default.Info, null) }, label = { Text("الخصوصية") }, selected = false, onClick = { scope.launch { drawerState.close() }; privacyOpen = true })
+                        Spacer(Modifier.height(10.dp))
+                        Text("إدارة ملفات وأرشيفات • 1.2", color = Muted, style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(horizontal = 12.dp))
+                    }
+                }
+            }
+        ) {
         Scaffold(
             containerColor = Ink,
             topBar = {
@@ -456,16 +492,15 @@ private fun FileMasterApp() {
                             Text(tr("مدير الملفات والأرشيفات"), style = MaterialTheme.typography.labelMedium, color = Muted)
                         }
                     },
+                    navigationIcon = {
+                        IconButton(onClick = { scope.launch { drawerState.open() } }) {
+                            Icon(Icons.Default.Menu, contentDescription = "فتح القائمة", tint = Accent)
+                        }
+                    },
                     actions = {
-                        if (privacyPinHash != null) IconButton(onClick = { pinEntry = ""; pinError = ""; isLocked = true }) { Icon(Icons.Default.Storage, contentDescription = tr("قفل الخصوصية"), tint = Accent) }
-                        IconButton(onClick = { settingsOpen = true }) { Icon(Icons.Default.Settings, contentDescription = tr("الإعدادات"), tint = Accent) }
-                        Box {
-                            TextButton(onClick = { languageMenuOpen = true }) { Text(tr("اللغة") + ": " + fileMasterLanguageName(language), color = Accent) }
-                            DropdownMenu(expanded = languageMenuOpen, onDismissRequest = { languageMenuOpen = false }) {
-                                DropdownMenuItem(text = { Text("العربية") }, onClick = { language = "ar"; preferences.edit().putString("language", language).apply(); languageMenuOpen = false })
-                                DropdownMenuItem(text = { Text("English") }, onClick = { language = "en"; preferences.edit().putString("language", language).apply(); languageMenuOpen = false })
-                                DropdownMenuItem(text = { Text("Français") }, onClick = { language = "fr"; preferences.edit().putString("language", language).apply(); languageMenuOpen = false })
-                                DropdownMenuItem(text = { Text("ⵜⴰⵎⴰⵣⵉⵖⵜ") }, onClick = { language = "tz"; preferences.edit().putString("language", language).apply(); languageMenuOpen = false })
+                        if (privacyPinHash != null) {
+                            IconButton(onClick = { pinEntry = ""; pinError = ""; isLocked = true }) {
+                                Icon(Icons.Default.Storage, contentDescription = tr("قفل الخصوصية"), tint = Accent)
                             }
                         }
                     },
@@ -474,10 +509,11 @@ private fun FileMasterApp() {
             }
         ) { padding ->
             Column(
-                modifier = Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(horizontal = 20.dp),
+                modifier = Modifier.fillMaxSize().padding(padding).verticalScroll(homeScrollState).padding(horizontal = 20.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 AdMobBanner(modifier = Modifier.fillMaxWidth())
+                DeviceHealthDashboard(context = context, folder = browseFolder, darkMode = darkMode)
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(28.dp),
@@ -932,6 +968,7 @@ private fun FileMasterApp() {
                 )
             }
         }
+        }
         if (archivePreviewText.isNotBlank()) {
             AlertDialog(
                 onDismissRequest = { archivePreviewText = "" },
@@ -1009,16 +1046,23 @@ private fun FileMasterApp() {
                 onDismissRequest = { settingsOpen = false },
                 title = { Text("إعدادات FileMaster") },
                 text = {
-                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Column(Modifier.heightIn(max = 440.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         Text("المطور: Ahmedbecetti")
                         Text("الدعم: ahmedbecetti41@gmail.com")
                         Text("اللغة: " + fileMasterLanguageName(language))
-                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            listOf("ar", "en", "fr", "tz").forEach { lang ->
-                                OutlinedButton(onClick = {
-                                    language = lang
-                                    preferences.edit().putString("language", lang).apply()
-                                }) { Text(fileMasterLanguageName(lang)) }
+                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            listOf(listOf("ar", "en"), listOf("fr", "tz")).forEach { pair ->
+                                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    pair.forEach { lang ->
+                                        OutlinedButton(
+                                            onClick = {
+                                                language = lang
+                                                preferences.edit().putString("language", lang).apply()
+                                            },
+                                            modifier = Modifier.weight(1f)
+                                        ) { Text(fileMasterLanguageName(lang), maxLines = 1) }
+                                    }
+                                }
                             }
                         }
                         OutlinedButton(onClick = { settingsOpen = false; managerName = ""; pinError = ""; managerDialog = "pinSetup" }, modifier = Modifier.fillMaxWidth()) {

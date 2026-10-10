@@ -64,7 +64,7 @@ jobs:
         if: success() && github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.1.0-dev.${{ github.run_number }}
+          tag_name: v1.2.0-dev.${{ github.run_number }}
           name: FileMaster Development Build ${{ github.run_number }}
           body: |
             Development/debug APK for FileMaster by Ahmedbecetti.
@@ -109,10 +109,10 @@ jobs:
         if: success() && github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && hashFiles('app/build/outputs/apk/release/app-release.apk') != ''
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.1.0
-          name: FileMaster 1.1.0 — Signed Release
+          tag_name: v1.2.0
+          name: FileMaster 1.2.0 — Signed Release
           body: |
-            FileMaster 1.1.0 signed production APK by Ahmedbecetti.
+            FileMaster 1.2.0 signed production APK by Ahmedbecetti.
 
             The APK is built from the release variant and verified with Android apksigner before publication. Keep the signing key and its passwords private and backed up securely.
           files: app/build/outputs/apk/release/app-release.apk
