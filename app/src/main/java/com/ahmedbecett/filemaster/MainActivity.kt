@@ -5,6 +5,10 @@ import android.content.ActivityNotFoundException
 import android.webkit.MimeTypeMap
 import android.net.Uri
 import android.os.Bundle
+import android.app.ActivityManager
+import android.content.Context
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
@@ -25,6 +29,12 @@ import androidx.compose.material.icons.filled.InsertDriveFile
 import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Memory
+import androidx.compose.material.icons.filled.QrCodeScanner
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -37,6 +47,7 @@ import com.google.android.gms.ads.AdRequest
 import com.google.android.gms.ads.AdSize
 import com.google.android.gms.ads.AdView
 import com.google.android.gms.ads.MobileAds
+import com.google.mlkit.vision.codescanner.GmsBarcodeScanning
 import androidx.documentfile.provider.DocumentFile
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -172,6 +183,10 @@ private fun FileMasterApp() {
     var recentOnly by remember { mutableStateOf(false) }
     var largeOnly by remember { mutableStateOf(false) }
     var languageMenuOpen by remember { mutableStateOf(false) }
+    var settingsOpen by remember { mutableStateOf(false) }
+    var privacyOpen by remember { mutableStateOf(false) }
+    var deviceInfoOpen by remember { mutableStateOf(false) }
+    var qrResult by remember { mutableStateOf<String?>(null) }
     fun tr(text: String): String = fileMasterText(text, language)
     val scope = rememberCoroutineScope()
     var selectedZip by remember { mutableStateOf<Uri?>(null) }
@@ -284,6 +299,7 @@ private fun FileMasterApp() {
                         }
                     },
                     actions = {
+                        IconButton(onClick = { settingsOpen = true }) { Icon(Icons.Default.Settings, contentDescription = tr("الإعدادات"), tint = Accent) }
                         Box {
                             TextButton(onClick = { languageMenuOpen = true }) { Text(tr("اللغة") + ": " + fileMasterLanguageName(language), color = Accent) }
                             DropdownMenu(expanded = languageMenuOpen, onDismissRequest = { languageMenuOpen = false }) {
@@ -494,6 +510,50 @@ private fun FileMasterApp() {
                         }
                     }
                 }
+                Card(colors = CardDefaults.cardColors(containerColor = Panel), shape = RoundedCornerShape(20.dp)) {
+                    Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("حالة الجهاز", fontWeight = FontWeight.Bold, color = Accent)
+                        val am = remember { context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager }
+                        val mi = remember { ActivityManager.MemoryInfo().also { am.getMemoryInfo(it) } }
+                        Text("RAM المتاحة: " + formatFileSize(mi.availMem) + " من " + formatFileSize(mi.totalMem), color = Muted, style = MaterialTheme.typography.bodySmall)
+                        Text("ملاحظة: لا يوفّر Android قياساً موحداً موثوقاً لسرعة الإنترنت أو نسبة CPU لجميع التطبيقات.", color = Muted, style = MaterialTheme.typography.bodySmall)
+                        OutlinedButton(onClick = {
+                            val selected = browseFiles.filter { it.uri.toString() in zipSelection && !it.isDirectory }
+                            if (selected.isEmpty()) { status = "حدد ملفات أولاً للإرسال."; success = false } else {
+                                val sendIntent = Intent(if (selected.size == 1) Intent.ACTION_SEND else Intent.ACTION_SEND_MULTIPLE).apply {
+                                    type = "*/*"
+                                    if (selected.size == 1) putExtra(Intent.EXTRA_STREAM, selected.first().uri)
+                                    else putParcelableArrayListExtra(Intent.EXTRA_STREAM, ArrayList(selected.map { it.uri }))
+                                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                }
+                                try { context.startActivity(Intent.createChooser(sendIntent, "إرسال عبر Bluetooth أو تطبيق Wi‑Fi"))
+                                    status = "اختر Bluetooth أو تطبيق مشاركة متوافق من قائمة Android."; success = true
+                                } catch (e: Exception) { status = "تعذر فتح قائمة المشاركة: " + (e.localizedMessage ?: "خطأ"); success = false }
+                            }
+                        }, modifier = Modifier.fillMaxWidth()) { Icon(Icons.Default.Share, contentDescription = null); Spacer(Modifier.width(8.dp)); Text("إرسال الملفات عبر تطبيقات المشاركة") }
+                    }
+                }
+                
+                ActionCard(
+                    icon = { Icon(Icons.Default.QrCodeScanner, contentDescription = null, tint = Accent) },
+                    title = "ماسح QR",
+                    detail = qrResult ?: "امسح رمز QR أو باركود بالكاميرا",
+                    buttonText = "مسح الآن",
+                    onClick = {
+                        GmsBarcodeScanning.getClient(context).startScan()
+                            .addOnSuccessListener { barcode ->
+                                qrResult = barcode.rawValue ?: "تمت قراءة الرمز دون نص"
+                                status = qrResult ?: "تمت القراءة"
+                                success = true
+                            }
+                            .addOnCanceledListener { status = "تم إلغاء المسح"; success = false }
+                            .addOnFailureListener { error ->
+                                status = "تعذر تشغيل ماسح QR: " + (error.localizedMessage ?: "خطأ غير معروف")
+                                success = false
+                            }
+                    }
+                )
+
                 Text(tr("أدوات سريعة"), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 ActionCard(
                     icon = { Icon(Icons.Default.InsertDriveFile, contentDescription = null, tint = Accent) },
@@ -584,6 +644,52 @@ private fun FileMasterApp() {
                     }) { Text(tr("تنفيذ")) }
                 },
                 dismissButton = { TextButton(onClick = { managerDialog = "" }) { Text(tr("إلغاء")) } }
+            )
+        }
+        if (settingsOpen) {
+            AlertDialog(
+                onDismissRequest = { settingsOpen = false },
+                title = { Text("إعدادات FileMaster") },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Text("المطور: Ahmedbecetti")
+                        Text("الدعم: ahmedbecetti41@gmail.com")
+                        Text("اللغة: " + fileMasterLanguageName(language))
+                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            listOf("ar", "en", "fr", "tz").forEach { lang ->
+                                OutlinedButton(onClick = {
+                                    language = lang
+                                    preferences.edit().putString("language", lang).apply()
+                                }) { Text(fileMasterLanguageName(lang)) }
+                            }
+                        }
+                        OutlinedButton(onClick = { settingsOpen = false; privacyOpen = true }, modifier = Modifier.fillMaxWidth()) {
+                            Text("سياسة الخصوصية")
+                        }
+                        OutlinedButton(onClick = { settingsOpen = false; deviceInfoOpen = true }, modifier = Modifier.fillMaxWidth()) {
+                            Text("معلومات الجهاز والذاكرة")
+                        }
+                    }
+                },
+                confirmButton = { TextButton(onClick = { settingsOpen = false }) { Text("إغلاق") } }
+            )
+        }
+        if (privacyOpen) {
+            AlertDialog(
+                onDismissRequest = { privacyOpen = false },
+                title = { Text("سياسة الخصوصية — ملخص") },
+                text = { Text("تعمل عمليات إدارة الملفات محلياً على جهازك. قد تستخدم النسخة الحالية إعلانات Google Mobile Ads، والتي قد تعالج بيانات وفق إعدادات وسياسات Google. لا ترفع ملفاتك إلى خوادم FileMaster ضمن وظائف إدارة الملفات الحالية. هذه شاشة ملخص وليست بديلاً عن نشر سياسة قانونية كاملة ورابطها قبل الإصدار العام.") },
+                confirmButton = { TextButton(onClick = { privacyOpen = false }) { Text("فهمت") } }
+            )
+        }
+        if (deviceInfoOpen) {
+            val am = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+            val mi = ActivityManager.MemoryInfo().also { am.getMemoryInfo(it) }
+            AlertDialog(
+                onDismissRequest = { deviceInfoOpen = false },
+                title = { Text("معلومات الجهاز") },
+                text = { Text("الذاكرة الكلية: " + formatFileSize(mi.totalMem) + "\nالذاكرة المتاحة حالياً: " + formatFileSize(mi.availMem) + "\nالذاكرة المستخدمة تقريبياً: " + formatFileSize((mi.totalMem - mi.availMem).coerceAtLeast(0)) + "\n\nلا تعرض هذه الشاشة نسبة CPU أو سرعة الإنترنت الحية؛ يلزم تنفيذ قياس مستقل موثوق لهما.") },
+                confirmButton = { TextButton(onClick = { deviceInfoOpen = false }) { Text("إغلاق") } }
             )
         }
         if (managerDialog == "delete") {
