@@ -221,6 +221,8 @@ private fun FileMasterApp() {
     var moveOperation by remember { mutableStateOf(false) }
     var trashMode by remember { mutableStateOf(false) }
     var trashReturnFolder by remember { mutableStateOf<DocumentFile?>(null) }
+    var hiddenMode by remember { mutableStateOf(false) }
+    var hiddenReturnFolder by remember { mutableStateOf<DocumentFile?>(null) }
     var previewBitmap by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
     var previewTitle by remember { mutableStateOf("") }
     var previewLoading by remember { mutableStateOf(false) }
@@ -272,8 +274,10 @@ private fun FileMasterApp() {
             browseFolder = DocumentFile.fromTreeUri(context, uri)
             trashMode = false
             trashReturnFolder = null
+            hiddenMode = false
+            hiddenReturnFolder = null
             browsePage = 0
-            browseFiles = browseFolder?.listFiles()?.filter { it.name != ".FileMasterTrash" }?.sortedWith(
+            browseFiles = browseFolder?.listFiles()?.filter { it.name != ".FileMasterTrash" && it.name != ".FileMasterHidden" }?.sortedWith(
                 compareBy<DocumentFile> { !it.isDirectory }.thenBy { it.name.orEmpty().lowercase() }
             ) ?: emptyList()
             zipSelection = emptySet()
@@ -417,30 +421,32 @@ private fun FileMasterApp() {
                         if (browseFolder != null) {
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 OutlinedButton(onClick = {
-                                    if (trashMode) {
-                                        val back = trashReturnFolder
+                                    if (trashMode || hiddenMode) {
+                                        val back = if (trashMode) trashReturnFolder else hiddenReturnFolder
                                         if (back != null) {
                                             browseFolder = back
-                                            browseFiles = back.listFiles().filter { it.name != ".FileMasterTrash" }.sortedWith(compareBy<DocumentFile> { !it.isDirectory }.thenBy { it.name.orEmpty().lowercase() })
+                                            browseFiles = back.listFiles().filter { it.name != ".FileMasterTrash" && it.name != ".FileMasterHidden" }.sortedWith(compareBy<DocumentFile> { !it.isDirectory }.thenBy { it.name.orEmpty().lowercase() })
                                         }
                                         trashMode = false
                                         trashReturnFolder = null
+                                        hiddenMode = false
+                                        hiddenReturnFolder = null
                                     } else {
                                         val parent = browseFolder?.parentFile
                                         if (parent != null) {
                                             browsePage = 0
                                             browseFolder = parent
-                                            browseFiles = parent.listFiles().filter { it.name != ".FileMasterTrash" }.sortedWith(compareBy<DocumentFile> { !it.isDirectory }.thenBy { it.name.orEmpty().lowercase() })
+                                            browseFiles = parent.listFiles().filter { it.name != ".FileMasterTrash" && it.name != ".FileMasterHidden" }.sortedWith(compareBy<DocumentFile> { !it.isDirectory }.thenBy { it.name.orEmpty().lowercase() })
                                             zipSelection = emptySet()
                                         }
                                     }
-                                }) { Text(if (trashMode) tr("العودة من سلة المحذوفات") else tr("المجلد السابق")) }
+                                }) { Text(if (trashMode) tr("العودة من سلة المحذوفات") else if (hiddenMode) tr("العودة من الملفات المخفية") else tr("المجلد السابق")) }
                                 OutlinedButton(onClick = {
                                     destination = browseRootUri
                                     status = tr("تم تعيين المجلد الرئيسي المختار كوجهة لفك الضغط.")
                                     success = true
                                 }) { Text(tr("استخدام كوجهة")) }
-                                if (!trashMode) OutlinedButton(onClick = {
+                                if (!trashMode && !hiddenMode) OutlinedButton(onClick = {
                                     val current = browseFolder
                                     val trash = current?.let { getOrCreateTrashFolder(it) }
                                     if (trash == null) {
@@ -456,10 +462,24 @@ private fun FileMasterApp() {
                                         status = tr("سلة المحذوفات: حدد العناصر لاستعادتها.")
                                     }
                                 }) { Text(tr("سلة المحذوفات")) }
+                                if (!trashMode && !hiddenMode) OutlinedButton(onClick = {
+                                    val current = browseFolder
+                                    val hidden = current?.let { getOrCreateHiddenFolder(it) }
+                                    if (hidden == null) { status = tr("تعذر إنشاء مجلد الملفات المخفية."); success = false }
+                                    else {
+                                        hiddenReturnFolder = current
+                                        browseFolder = hidden
+                                        browseFiles = hidden.listFiles().sortedWith(compareBy<DocumentFile> { !it.isDirectory }.thenBy { it.name.orEmpty().lowercase() })
+                                        hiddenMode = true
+                                        zipSelection = emptySet()
+                                        browsePage = 0
+                                        status = tr("الملفات المخفية: حدد العناصر ثم أظهرها لاستعادتها.")
+                                    }
+                                }) { Text(tr("الملفات المخفية")) }
                             }
-                            if (trashMode && zipSelection.isNotEmpty()) {
+                            if ((trashMode || hiddenMode) && zipSelection.isNotEmpty()) {
                                 OutlinedButton(onClick = {
-                                    val target = trashReturnFolder
+                                    val target = if (trashMode) trashReturnFolder else hiddenReturnFolder
                                     val selected = browseFiles.filter { it.uri.toString() in zipSelection }
                                     if (target == null) {
                                         status = tr("اختر مجلد الملفات الأصلي أولاً.")
@@ -471,7 +491,7 @@ private fun FileMasterApp() {
                                         browseFiles = browseFolder?.listFiles()?.sortedWith(compareBy<DocumentFile> { !it.isDirectory }.thenBy { it.name.orEmpty().lowercase() }) ?: emptyList()
                                         zipSelection = emptySet()
                                     }
-                                }, modifier = Modifier.fillMaxWidth()) { Text(tr("استعادة العناصر المحددة")) }
+                                }, modifier = Modifier.fillMaxWidth()) { Text(if (trashMode) tr("استعادة العناصر المحددة") else tr("إظهار العناصر المحددة")) }
                             }
                             OutlinedTextField(
                                 value = browseSearch,
@@ -493,7 +513,7 @@ private fun FileMasterApp() {
                             val folderBytes = browseFiles.sumOf { it.length().coerceAtLeast(0L) }
                             Card(colors = CardDefaults.cardColors(containerColor = Ink), shape = RoundedCornerShape(16.dp)) {
                                 Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                    Text(if (trashMode) tr("سلة المحذوفات") else tr("محتويات المجلد"), fontWeight = FontWeight.Bold, color = Accent)
+                                    Text(if (trashMode) tr("سلة المحذوفات") else if (hiddenMode) tr("الملفات المخفية") else tr("محتويات المجلد"), fontWeight = FontWeight.Bold, color = Accent)
                                     Text("${browseFiles.size} items • ${formatFileSize(folderBytes)}", color = Muted, style = MaterialTheme.typography.bodySmall)
                                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                         FilterChip(selected = favoritesOnly, onClick = { favoritesOnly = !favoritesOnly; imagesOnly = false; browsePage = 0 }, label = { Text("Favorites") })
@@ -515,7 +535,7 @@ private fun FileMasterApp() {
                                             if (file.isDirectory) {
                                                 browsePage = 0
                                                 browseFolder = file
-                                                browseFiles = file.listFiles().sortedWith(compareBy<DocumentFile> { !it.isDirectory }.thenBy { it.name.orEmpty().lowercase() })
+                                                browseFiles = file.listFiles().filter { it.name != ".FileMasterTrash" && it.name != ".FileMasterHidden" }.sortedWith(compareBy<DocumentFile> { !it.isDirectory }.thenBy { it.name.orEmpty().lowercase() })
                                                 zipSelection = emptySet()
                                             } else {
                                                 val fileName = file.name ?: "file"
@@ -589,6 +609,21 @@ private fun FileMasterApp() {
                                             managerDialog = "rename"
                                         } else status = tr("حدد عنصراً واحداً لإعادة تسميته.")
                                     }, modifier = Modifier.weight(1f)) { Text(tr("إعادة تسمية")) }
+                                    OutlinedButton(onClick = {
+                                        val selected = browseFiles.filter { it.uri.toString() in zipSelection }
+                                        if (selected.isEmpty()) status = tr("حدد عناصر لإخفائها أولاً.")
+                                        else {
+                                            val hidden = browseFolder?.let { getOrCreateHiddenFolder(it) }
+                                            if (hidden == null) { status = tr("تعذر إنشاء مجلد الملفات المخفية."); success = false }
+                                            else {
+                                                val result = moveToTrash(context, selected, hidden, "المجلد المخفي")
+                                                status = result
+                                                success = result.startsWith("نُقلت العناصر إلى المجلد المخفي")
+                                                browseFiles = browseFolder?.listFiles()?.filter { it.name != ".FileMasterTrash" && it.name != ".FileMasterHidden" }?.sortedWith(compareBy<DocumentFile> { !it.isDirectory }.thenBy { it.name.orEmpty().lowercase() }) ?: emptyList()
+                                                zipSelection = emptySet()
+                                            }
+                                        }
+                                    }, modifier = Modifier.weight(1f)) { Text(tr("إخفاء المحدد")) }
                                     OutlinedButton(onClick = { managerDialog = "delete" }, modifier = Modifier.weight(1f)) { Text(tr("حذف")) }
                                 }
                                 OutlinedButton(
@@ -924,7 +959,7 @@ private fun FileMasterApp() {
                         success = result.startsWith("نُقلت العناصر إلى سلة المحذوفات") || result.startsWith("حُذف نهائياً")
                         managerDialog = ""
                         zipSelection = emptySet()
-                        browseFiles = browseFolder?.listFiles()?.filter { trashMode || it.name != ".FileMasterTrash" }?.sortedWith(compareBy<DocumentFile> { !it.isDirectory }.thenBy { it.name.orEmpty().lowercase() }) ?: emptyList()
+                        browseFiles = browseFolder?.listFiles()?.filter { (trashMode || hiddenMode) || (it.name != ".FileMasterTrash" && it.name != ".FileMasterHidden") }?.sortedWith(compareBy<DocumentFile> { !it.isDirectory }.thenBy { it.name.orEmpty().lowercase() }) ?: emptyList()
                     }) { Text(tr("حذف")) }
                 },
                 dismissButton = { TextButton(onClick = { managerDialog = "" }) { Text(tr("إلغاء")) } }
@@ -986,6 +1021,12 @@ private fun hashPrivacyPin(pin: String): String {
     return bytes.joinToString("") { "%02x".format(it) }
 }
 
+private fun getOrCreateHiddenFolder(parent: DocumentFile): DocumentFile? {
+    val existing = parent.findFile(".FileMasterHidden")
+    if (existing != null) return existing.takeIf { it.isDirectory }
+    return parent.createDirectory(".FileMasterHidden")
+}
+
 private fun getOrCreateTrashFolder(parent: DocumentFile): DocumentFile? {
     val existing = parent.findFile(".FileMasterTrash")
     if (existing != null) return existing.takeIf { it.isDirectory }
@@ -1006,7 +1047,7 @@ private fun uniqueDocumentName(parent: DocumentFile, original: String): String {
     return System.currentTimeMillis().toString() + "-" + original
 }
 
-private fun moveToTrash(context: android.content.Context, sources: List<DocumentFile>, trash: DocumentFile): String {
+private fun moveToTrash(context: android.content.Context, sources: List<DocumentFile>, trash: DocumentFile, label: String = "سلة المحذوفات"): String {
     var moved = 0
     val errors = mutableListOf<String>()
     for (source in sources) {
@@ -1028,7 +1069,7 @@ private fun moveToTrash(context: android.content.Context, sources: List<Document
             errors += (source.name ?: "item") + ": " + (e.localizedMessage ?: "error")
         }
     }
-    return if (errors.isEmpty()) "نُقلت العناصر إلى سلة المحذوفات: " + moved else "نُقلت " + moved + " عناصر إلى السلة؛ تعذرت بعض العمليات: " + errors.joinToString("; ")
+    return if (errors.isEmpty()) "نُقلت العناصر إلى " + label + ": " + moved else "نُقلت " + moved + " عناصر إلى " + label + "؛ تعذرت بعض العمليات: " + errors.joinToString("; ")
 }
 
 private fun restoreFromTrash(context: android.content.Context, sources: List<DocumentFile>, destination: DocumentFile): String {
