@@ -24,6 +24,7 @@ import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.InsertDriveFile
 import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -162,7 +163,12 @@ private fun fileMasterLanguageName(language: String): String = when (language) {
 @OptIn(ExperimentalMaterial3Api::class)
 private fun FileMasterApp() {
     val context = androidx.compose.ui.platform.LocalContext.current
-    var language by remember { mutableStateOf("ar") }
+    val preferences = remember { context.getSharedPreferences("filemaster_preferences", android.content.Context.MODE_PRIVATE) }
+    var language by remember { mutableStateOf(preferences.getString("language", "ar") ?: "ar") }
+    var favoriteUris by remember { mutableStateOf(preferences.getStringSet("favorites", emptySet())?.toSet() ?: emptySet()) }
+    var recentUris by remember { mutableStateOf(preferences.getString("recent", "")?.split("\n")?.filter { it.isNotBlank() } ?: emptyList()) }
+    var favoritesOnly by remember { mutableStateOf(false) }
+    var imagesOnly by remember { mutableStateOf(false) }
     var languageMenuOpen by remember { mutableStateOf(false) }
     fun tr(text: String): String = fileMasterText(text, language)
     val scope = rememberCoroutineScope()
@@ -279,10 +285,10 @@ private fun FileMasterApp() {
                         Box {
                             TextButton(onClick = { languageMenuOpen = true }) { Text(tr("اللغة") + ": " + fileMasterLanguageName(language), color = Accent) }
                             DropdownMenu(expanded = languageMenuOpen, onDismissRequest = { languageMenuOpen = false }) {
-                                DropdownMenuItem(text = { Text("العربية") }, onClick = { language = "ar"; languageMenuOpen = false })
-                                DropdownMenuItem(text = { Text("English") }, onClick = { language = "en"; languageMenuOpen = false })
-                                DropdownMenuItem(text = { Text("Français") }, onClick = { language = "fr"; languageMenuOpen = false })
-                                DropdownMenuItem(text = { Text("ⵜⴰⵎⴰⵣⵉⵖⵜ") }, onClick = { language = "tz"; languageMenuOpen = false })
+                                DropdownMenuItem(text = { Text("العربية") }, onClick = { language = "ar"; preferences.edit().putString("language", language).apply(); languageMenuOpen = false })
+                                DropdownMenuItem(text = { Text("English") }, onClick = { language = "en"; preferences.edit().putString("language", language).apply(); languageMenuOpen = false })
+                                DropdownMenuItem(text = { Text("Français") }, onClick = { language = "fr"; preferences.edit().putString("language", language).apply(); languageMenuOpen = false })
+                                DropdownMenuItem(text = { Text("ⵜⴰⵎⴰⵣⵉⵖⵜ") }, onClick = { language = "tz"; preferences.edit().putString("language", language).apply(); languageMenuOpen = false })
                             }
                         }
                     },
@@ -360,7 +366,25 @@ private fun FileMasterApp() {
                                 singleLine = true,
                                 shape = RoundedCornerShape(14.dp)
                             )
-                            val matchingBrowseFiles = browseFiles.filter { it.name.orEmpty().contains(browseSearch, ignoreCase = true) }
+                            val matchingBrowseFiles = browseFiles.filter { file ->
+                                val name = file.name.orEmpty()
+                                name.contains(browseSearch, ignoreCase = true) &&
+                                    (!favoritesOnly || file.uri.toString() in favoriteUris) &&
+                                    (!imagesOnly || name.substringAfterLast(".", "").lowercase() in setOf("jpg", "jpeg", "png", "gif", "webp", "bmp", "heic"))
+                            }
+                            val folderBytes = browseFiles.sumOf { it.length().coerceAtLeast(0L) }
+                            Card(colors = CardDefaults.cardColors(containerColor = Ink), shape = RoundedCornerShape(16.dp)) {
+                                Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    Text("Folder overview", fontWeight = FontWeight.Bold, color = Accent)
+                                    Text("${browseFiles.size} items • ${formatFileSize(folderBytes)}", color = Muted, style = MaterialTheme.typography.bodySmall)
+                                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        FilterChip(selected = favoritesOnly, onClick = { favoritesOnly = !favoritesOnly; imagesOnly = false; browsePage = 0 }, label = { Text("Favorites") })
+                                        FilterChip(selected = imagesOnly, onClick = { imagesOnly = !imagesOnly; favoritesOnly = false; browsePage = 0 }, label = { Text("Images") })
+                                        TextButton(onClick = { favoritesOnly = false; imagesOnly = false; browseSearch = ""; browsePage = 0 }) { Text("All") }
+                                    }
+                                    if (recentUris.isNotEmpty()) Text("Recently opened: ${recentUris.size}", color = Muted, style = MaterialTheme.typography.labelSmall)
+                                }
+                            }
                             if (matchingBrowseFiles.isEmpty()) {
                                 Text(if (browseFiles.isEmpty()) tr("المجلد فارغ") else tr("لا توجد نتائج مطابقة"), color = Muted, style = MaterialTheme.typography.bodySmall)
                                 OutlinedButton(onClick = { managerName = ""; managerDialog = "mkdir" }, modifier = Modifier.fillMaxWidth()) { Text(tr("إنشاء مجلد هنا")) }
@@ -375,6 +399,8 @@ private fun FileMasterApp() {
                                                 zipSelection = emptySet()
                                             } else {
                                                 val fileName = file.name ?: "file"
+                                                recentUris = (listOf(file.uri.toString()) + recentUris.filterNot { it == file.uri.toString() }).take(20)
+                                                preferences.edit().putString("recent", recentUris.joinToString("\n")).apply()
                                                 if (fileName.lowercase().endsWith(".zip")) {
                                                     selectedZip = file.uri
                                                     selectedName = fileName
@@ -401,6 +427,11 @@ private fun FileMasterApp() {
                                     ) {
                                         Icon(if (file.isDirectory) Icons.Default.FolderOpen else Icons.Default.InsertDriveFile, contentDescription = null, tint = Accent)
                                         Text(file.name ?: tr("بدون اسم"), modifier = Modifier.weight(1f).padding(start = 8.dp), maxLines = 1, color = Color(0xFFE0E6EF))
+                                        IconButton(onClick = {
+                                            val key = file.uri.toString()
+                                            favoriteUris = if (key in favoriteUris) favoriteUris - key else favoriteUris + key
+                                            preferences.edit().putStringSet("favorites", favoriteUris).apply()
+                                        }) { Icon(Icons.Default.Star, contentDescription = "Favorite", tint = if (file.uri.toString() in favoriteUris) Accent else Muted) }
                                         Checkbox(
                                             checked = file.uri.toString() in zipSelection,
                                             onCheckedChange = { checked ->
@@ -599,6 +630,15 @@ private fun ActionCard(
             OutlinedButton(onClick = onClick, shape = RoundedCornerShape(14.dp)) { Text(buttonText) }
         }
     }
+}
+
+private fun formatFileSize(bytes: Long): String {
+    if (bytes < 1024) return "$bytes B"
+    val units = listOf("KB", "MB", "GB", "TB")
+    var value = bytes.toDouble()
+    var unit = -1
+    while (value >= 1024 && unit < units.lastIndex) { value /= 1024.0; unit++ }
+    return String.format(java.util.Locale.ROOT, "%.1f %s", value, units[unit])
 }
 
 private fun createZipArchive(context: android.content.Context, sources: List<DocumentFile>, uri: Uri): String {
