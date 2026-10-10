@@ -33,7 +33,8 @@ The link downloads the APK directly from the latest GitHub Release. After downlo
 - **Recoverable Trash:** Move selected items into an app-managed Trash folder, restore selected items, or permanently delete items from Trash. The trash is stored inside the browsed folder and is not a system-wide recycle bin.
 - **PIN privacy lock:** Optional numeric PIN gates the app interface. It does not encrypt the underlying files, and this is not a substitute for Android device security.
 - **QR/barcode scanner:** Uses Google Play services Code Scanner.
-- **Device information:** Shows total and currently available RAM.
+- **Device information:** Shows total and currently available RAM. It does not currently report live CPU percentage or a measured internet-speed test.
+- **Safe junk scan:** Flags common temporary/log/backup-download file extensions in the currently selected folder for review. It never auto-deletes; using Delete sends selected candidates to the app-managed Trash.
 - **Sharing:** Send selected files through Android's share sheet to installed Bluetooth/Wi-Fi apps, or start a temporary read-only HTTP server on the local network to let nearby devices download selected files using a browser. Stop LAN sharing when finished; anyone with the URL on that network can access the selected files. Built-in FTP is not implemented.
 - **Settings and privacy summary:** Includes language controls, developer contact, and a privacy-policy summary. A complete public legal policy and ad-consent flow are still needed before production release.
 - **Android-native app:** Kotlin + Jetpack Compose, with FileMaster branding and launcher icon.
