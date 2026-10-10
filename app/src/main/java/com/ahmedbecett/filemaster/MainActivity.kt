@@ -506,7 +506,7 @@ private fun FileMasterApp() {
                                                 recentUris = (listOf(file.uri.toString()) + recentUris.filterNot { it == file.uri.toString() }).take(20)
                                                 preferences.edit().putString("recent", recentUris.joinToString("\n")).apply()
                                                 val extension = fileName.substringAfterLast('.', "").lowercase()
-                                                if (extension == "zip") {
+                                                if (extension in setOf("zip", "7z", "rar", "tar", "tgz", "gz")) {
                                                     selectedZip = file.uri
                                                     selectedName = fileName
                                                     status = tr("تم اختيار ") + fileName + tr(". استخدم زر فك الضغط لاستخراجه.")
@@ -653,10 +653,10 @@ private fun FileMasterApp() {
                 Text(tr("أدوات سريعة"), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 ActionCard(
                     icon = { Icon(Icons.Default.InsertDriveFile, contentDescription = null, tint = Accent) },
-                    title = tr("اختيار أرشيف ZIP"),
+                    title = tr("اختيار أرشيف"),
                     detail = selectedName ?: tr("اختر ملفاً من ذاكرة الهاتف"),
                     buttonText = tr("تصفح الملفات"),
-                    onClick = { zipPicker.launch(arrayOf("application/zip", "application/x-zip-compressed", "application/octet-stream", "*/*")) }
+                    onClick = { zipPicker.launch(arrayOf("application/zip", "application/x-zip-compressed", "application/x-7z-compressed", "application/vnd.rar", "application/x-rar-compressed", "application/x-tar", "application/gzip", "application/x-gzip", "application/octet-stream", "*/*")) }
                 )
                 ActionCard(
                     icon = { Icon(Icons.Default.FolderOpen, contentDescription = null, tint = Accent) },
@@ -671,7 +671,7 @@ private fun FileMasterApp() {
                         val archive = selectedZip
                         val target = destination
                         if (archive == null) {
-                            status = tr("اختر ملف ZIP أولاً.")
+                            status = tr("اختر أرشيفاً أولاً.")
                             success = false
                         } else if (target == null) {
                             status = tr("اختر مجلد الحفظ أولاً.")
@@ -681,7 +681,7 @@ private fun FileMasterApp() {
                             success = false
                             status = tr("جارٍ فك الضغط…")
                             scope.launch {
-                                val result = withContext(Dispatchers.IO) { extractZipSafely(context, archive, target) }
+                                val result = withContext(Dispatchers.IO) { extractArchiveSafely(context, archive, selectedName ?: "archive.zip", target) }
                                 busy = false
                                 success = result.startsWith(tr("تم استخراج"))
                                 status = result
@@ -1081,7 +1081,7 @@ private fun copyDocumentTree(context: android.content.Context, source: DocumentF
     }
 }
 
-private fun extractZipSafely(context: android.content.Context, archiveUri: Uri, destinationUri: Uri): String {
+internal fun extractZipSafely(context: android.content.Context, archiveUri: Uri, destinationUri: Uri): String {
     var extractedFiles = 0
     var extractedBytes = 0L
     var entryCount = 0
