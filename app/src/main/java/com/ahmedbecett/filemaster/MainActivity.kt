@@ -12,6 +12,8 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Archive
@@ -21,6 +23,7 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.InsertDriveFile
 import androidx.compose.material.icons.filled.Storage
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -33,6 +36,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.BufferedInputStream
+import java.io.BufferedOutputStream
 import java.util.zip.ZipInputStream
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
@@ -168,7 +172,7 @@ private fun FileMasterApp() {
             }
         ) { padding ->
             Column(
-                modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 20.dp),
+                modifier = Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(horizontal = 20.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 Card(
@@ -530,32 +534,61 @@ private fun copyDocumentTree(context: android.content.Context, source: DocumentF
 }
 
 private fun extractZipSafely(context: android.content.Context, archiveUri: Uri, destinationUri: Uri): String {
-    var extracted = 0
+    var extractedFiles = 0
+    var extractedBytes = 0L
+    var entryCount = 0
+    val maxEntries = 10_000
+    val maxExtractedBytes = 512L * 1024L * 1024L
     return try {
-        val root = DocumentFile.fromTreeUri(context, destinationUri) ?: return "تعذر فتح مجلد الحفظ."
-        val input = context.contentResolver.openInputStream(archiveUri) ?: return "تعذر قراءة الأرشيف المحدد."
+        val root = DocumentFile.fromTreeUri(context, destinationUri)
+            ?: return "تعذر فتح مجلد الحفظ."
+        val input = context.contentResolver.openInputStream(archiveUri)
+            ?: return "تعذر قراءة الأرشيف المحدد."
         input.use { raw ->
             ZipInputStream(BufferedInputStream(raw)).use { zip ->
                 var entry = zip.nextEntry
                 while (entry != null) {
-                    val rawName = entry.name.replace('\\', '/')
-                    val parts = rawName.split('/').filter { it.isNotBlank() }
-                    if (rawName.startsWith("/") || parts.any { it == ".." || it == "." }) {
-                        return "توقف الاستخراج: يحتوي الأرشيف على مسار غير آمن."
+                    entryCount++
+                    if (entryCount > maxEntries) {
+                        throw IllegalStateException("الأرشيف يحتوي على عدد كبير جداً من العناصر.")
                     }
+
+                    val rawName = entry.name.replace('\\\\', '/')
+                    val parts = rawName.split('/').filter { it.isNotBlank() }
+                    if (rawName.startsWith("/") ||
+                        rawName.startsWith("\\\\") ||
+                        parts.any { it == ".." || it == "." || it.contains(':') } ||
+                        rawName.length > 4096
+                    ) {
+                        throw IllegalStateException("يحتوي الأرشيف على مسار غير آمن.")
+                    }
+
                     if (parts.isNotEmpty()) {
                         var parent = root
                         for (part in parts.dropLast(1)) {
-                            parent = parent.findFile(part) ?: parent.createDirectory(part)
-                                ?: throw IllegalStateException("تعذر إنشاء مجلد: " + part)
+                            val existingParent = parent.findFile(part)
+                            parent = when {
+                                existingParent == null -> parent.createDirectory(part)
+                                    ?: throw IllegalStateException("تعذر إنشاء مجلد: " + part)
+                                existingParent.isDirectory -> existingParent
+                                else -> throw IllegalStateException("يوجد ملف في مسار المجلد: " + part)
+                            }
                         }
+
                         val leaf = parts.last()
                         if (entry.isDirectory) {
-                            if (parent.findFile(leaf) == null && parent.createDirectory(leaf) == null) {
+                            val existingDirectory = parent.findFile(leaf)
+                            if (existingDirectory == null && parent.createDirectory(leaf) == null) {
                                 throw IllegalStateException("تعذر إنشاء المجلد: " + leaf)
+                            }
+                            if (existingDirectory != null && !existingDirectory.isDirectory) {
+                                throw IllegalStateException("يوجد ملف بالاسم المطلوب للمجلد: " + leaf)
                             }
                         } else {
                             val existing = parent.findFile(leaf)
+                            if (existing?.isDirectory == true) {
+                                throw IllegalStateException("يوجد مجلد بالاسم المطلوب للملف: " + leaf)
+                            }
                             if (existing != null && !existing.delete()) {
                                 throw IllegalStateException("تعذر استبدال الملف: " + leaf)
                             }
@@ -566,11 +599,15 @@ private fun extractZipSafely(context: android.content.Context, archiveUri: Uri, 
                                 while (true) {
                                     val count = zip.read(buffer)
                                     if (count < 0) break
+                                    extractedBytes += count
+                                    if (extractedBytes > maxExtractedBytes) {
+                                        throw IllegalStateException("تجاوز حجم الاستخراج الحد المسموح (512 ميغابايت).")
+                                    }
                                     output.write(buffer, 0, count)
                                 }
                                 output.flush()
                             } ?: throw IllegalStateException("تعذر الكتابة إلى الملف: " + leaf)
-                            extracted++
+                            extractedFiles++
                         }
                     }
                     zip.closeEntry()
@@ -578,7 +615,7 @@ private fun extractZipSafely(context: android.content.Context, archiveUri: Uri, 
                 }
             }
         }
-        "تم استخراج " + extracted + " ملف بنجاح."
+        "تم استخراج " + extractedFiles + " ملف بنجاح."
     } catch (e: Exception) {
         "فشل فك الضغط: " + (e.localizedMessage ?: "خطأ غير معروف")
     }
