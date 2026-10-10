@@ -62,10 +62,18 @@ import java.util.zip.ZipInputStream
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 
-private val Ink = Color(0xFF101522)
-private val Panel = Color(0xFF1B2434)
-private val Accent = Color(0xFF79E0C3)
-private val Muted = Color(0xFFADB8C8)
+private var Ink by mutableStateOf(Color(0xFF101522))
+private var Panel by mutableStateOf(Color(0xFF1B2434))
+private var Accent by mutableStateOf(Color(0xFF79E0C3))
+private var Muted by mutableStateOf(Color(0xFFADB8C8))
+
+private fun setFileMasterPalette(dark: Boolean) {
+    if (dark) {
+        Ink = Color(0xFF101522); Panel = Color(0xFF1B2434); Accent = Color(0xFF79E0C3); Muted = Color(0xFFADB8C8)
+    } else {
+        Ink = Color(0xFFF4F7FB); Panel = Color(0xFFFFFFFF); Accent = Color(0xFF087F6C); Muted = Color(0xFF526174)
+    }
+}
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -180,6 +188,8 @@ private fun FileMasterApp() {
     val context = androidx.compose.ui.platform.LocalContext.current
     val preferences = remember { context.getSharedPreferences("filemaster_preferences", android.content.Context.MODE_PRIVATE) }
     var language by remember { mutableStateOf(preferences.getString("language", "ar") ?: "ar") }
+    var darkMode by remember { mutableStateOf(preferences.getBoolean("dark_theme", true)) }
+    LaunchedEffect(darkMode) { setFileMasterPalette(darkMode) }
     var favoriteUris by remember { mutableStateOf(preferences.getStringSet("favorites", emptySet())?.toSet() ?: emptySet()) }
     var recentUris by remember { mutableStateOf(preferences.getString("recent", "")?.split("\n")?.filter { it.isNotBlank() } ?: emptyList()) }
     var favoritesOnly by remember { mutableStateOf(false) }
@@ -303,9 +313,12 @@ private fun FileMasterApp() {
         }
     }
 
-    MaterialTheme(colorScheme = darkColorScheme(
+    MaterialTheme(colorScheme = if (darkMode) darkColorScheme(
         primary = Accent, onPrimary = Ink, background = Ink, surface = Panel,
         onSurface = Color(0xFFF4F7FB), secondary = Muted
+    ) else lightColorScheme(
+        primary = Accent, onPrimary = Color.White, background = Ink, surface = Panel,
+        onSurface = Color(0xFF172033), secondary = Muted
     )) {
         if (isLocked) {
             Column(Modifier.fillMaxSize().background(Ink).padding(24.dp), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
@@ -802,6 +815,13 @@ private fun FileMasterApp() {
                         }
                         OutlinedButton(onClick = { settingsOpen = false; managerName = ""; pinError = ""; managerDialog = "pinSetup" }, modifier = Modifier.fillMaxWidth()) {
                             Text(if (privacyPinHash == null) "إعداد قفل الخصوصية" else "تغيير/إعادة إعداد رمز الخصوصية")
+                        }
+                        OutlinedButton(onClick = {
+                            darkMode = !darkMode
+                            preferences.edit().putBoolean("dark_theme", darkMode).apply()
+                            setFileMasterPalette(darkMode)
+                        }, modifier = Modifier.fillMaxWidth()) {
+                            Text(if (darkMode) "التبديل إلى المظهر الفاتح" else "التبديل إلى المظهر الداكن")
                         }
                         OutlinedButton(onClick = { settingsOpen = false; privacyOpen = true }, modifier = Modifier.fillMaxWidth()) {
                             Text("سياسة الخصوصية")
