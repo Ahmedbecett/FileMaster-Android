@@ -615,7 +615,7 @@ private fun AdMobBanner(modifier: Modifier = Modifier) {
         factory = { context ->
             AdView(context).apply {
                 setAdSize(AdSize.BANNER)
-                adUnitId = "ca-app-pub-6858364141205978/6520053100"
+                adUnitId = "ca-app-pub-6858364141205978/8292299771"
                 loadAd(AdRequest.Builder().build())
             }
         }
