@@ -75,7 +75,7 @@ jobs:
           make_latest: false
 
       - name: Build and verify signed production APK
-        if: success() && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: success() && github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
         env:
           FILEMASTER_KEYSTORE_BASE64: ${{ secrets.FILEMASTER_KEYSTORE_BASE64 }}
           FILEMASTER_STORE_PASSWORD: ${{ secrets.FILEMASTER_STORE_PASSWORD }}
@@ -106,7 +106,7 @@ jobs:
           if-no-files-found: error
 
       - name: Publish signed production release
-        if: success() && github.event_name == 'push' && github.ref == 'refs/heads/main' && hashFiles('app/build/outputs/apk/release/app-release.apk') != ''
+        if: success() && github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && hashFiles('app/build/outputs/apk/release/app-release.apk') != ''
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v1.1.0
