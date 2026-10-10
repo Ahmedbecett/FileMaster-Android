@@ -31,6 +31,7 @@ The link downloads the APK directly from the latest GitHub Release. After downlo
 - **Open files:** Open supported documents and media using compatible apps installed on Android.
 - **In-app image preview:** Preview JPG, JPEG, PNG, WebP, BMP and GIF still frames inside the app.
 - **Recoverable Trash:** Move selected items into an app-managed Trash folder, restore selected items, or permanently delete items from Trash. The trash is stored inside the browsed folder and is not a system-wide recycle bin.
+- **Hide/unhide selected items:** Move chosen files or folders into a dot-prefixed .FileMasterHidden folder and restore them from the hidden-items view. This hides them from FileMaster's normal list but does not encrypt them or prevent other file managers from accessing them.
 - **PIN privacy lock:** Optional numeric PIN gates the app interface. It does not encrypt the underlying files, and this is not a substitute for Android device security.
 - **QR/barcode scanner:** Uses Google Play services Code Scanner.
 - **Device information:** Shows total and currently available RAM. It does not currently report live CPU percentage or a measured internet-speed test.
