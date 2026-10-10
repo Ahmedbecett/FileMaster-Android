@@ -5,10 +5,15 @@ import android.content.ActivityNotFoundException
 import android.webkit.MimeTypeMap
 import android.net.Uri
 import android.os.Bundle
+import android.app.ActivityManager
+import android.content.Context
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -25,11 +30,20 @@ import androidx.compose.material.icons.filled.InsertDriveFile
 import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Memory
+import androidx.compose.material.icons.filled.QrCodeScanner
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.*
+import androidx.compose.ui.window.Dialog
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -37,6 +51,7 @@ import com.google.android.gms.ads.AdRequest
 import com.google.android.gms.ads.AdSize
 import com.google.android.gms.ads.AdView
 import com.google.android.gms.ads.MobileAds
+import com.google.mlkit.vision.codescanner.GmsBarcodeScanning
 import androidx.documentfile.provider.DocumentFile
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -47,10 +62,18 @@ import java.util.zip.ZipInputStream
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 
-private val Ink = Color(0xFF101522)
-private val Panel = Color(0xFF1B2434)
-private val Accent = Color(0xFF79E0C3)
-private val Muted = Color(0xFFADB8C8)
+private var Ink by mutableStateOf(Color(0xFF101522))
+private var Panel by mutableStateOf(Color(0xFF1B2434))
+private var Accent by mutableStateOf(Color(0xFF79E0C3))
+private var Muted by mutableStateOf(Color(0xFFADB8C8))
+
+private fun setFileMasterPalette(dark: Boolean) {
+    if (dark) {
+        Ink = Color(0xFF101522); Panel = Color(0xFF1B2434); Accent = Color(0xFF79E0C3); Muted = Color(0xFFADB8C8)
+    } else {
+        Ink = Color(0xFFF4F7FB); Panel = Color(0xFFFFFFFF); Accent = Color(0xFF087F6C); Muted = Color(0xFF526174)
+    }
+}
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -101,6 +124,33 @@ private val FileMasterTranslations: Map<String, List<String>> = mapOf(
 )
 
 private val FileMasterExtraTranslations: Map<String, List<String>> = mapOf(
+    "سلة المحذوفات" to listOf("Trash", "Corbeille", "ⴰⴽⴰⵔⵏ ⵏ ⵉⵜⵜⵓⴽⴽⵙⵏ"),
+    "العودة من سلة المحذوفات" to listOf("Back from Trash", "Retour de la corbeille", "ⵓⵖⴰⵍ ⵙⴳ ⵜⴽⵓⵔⴱⵉⵍⵜ"),
+    "استعادة العناصر المحددة" to listOf("Restore selected items", "Restaurer les éléments sélectionnés", "ⵙⵎⵓⵔⵔⵉ ⵉⵙⵖⵓⵏ ⵉⵜⵜⵓⴼⵔⵏ"),
+    "محتويات المجلد" to listOf("Folder contents", "Contenu du dossier", "ⵉⴳⴱⵔⴰⵏ ⵏ ⵓⴽⴰⵔⵏ"),
+    "ستنقل العناصر المحددة إلى سلة المحذوفات ويمكن استعادتها لاحقاً." to listOf("Selected items will move to Trash and can be restored later.", "Les éléments seront déplacés vers la corbeille et pourront être restaurés.", "ⴰⴷ ⵜⵜⵓⵙⵉⵡⴹⵏ ⵉⵙⵖⵓⵏ ⵙ ⵜⴽⵓⵔⴱⵉⵍⵜ."),
+    "سيتم حذف العناصر المحددة نهائياً." to listOf("Selected items will be permanently deleted.", "Les éléments sélectionnés seront supprimés définitivement.", "ⴰⴷ ⵜⵜⵓⴽⴽⵙⵏ ⵉⵙⵖⵓⵏ ⴰⴽⴽⵯ."),
+    "تعذر إنشاء سلة المحذوفات؛ لم تُحذف الملفات." to listOf("Could not create Trash; no files were deleted.", "Impossible de créer la corbeille ; aucun fichier n’a été supprimé.", "ⵓⵔ ⵉⵣⵎⵉⵔ ⴰⴷ ⵉⵙⵏⵓⵍⴼⵓ ⵜⴰⴽⵓⵔⴱⵉⵍⵜ."),
+    "سلة المحذوفات: حدد العناصر لاستعادتها." to listOf("Trash: select items to restore.", "Corbeille : sélectionnez les éléments à restaurer.", "ⵜⴰⴽⵓⵔⴱⵉⵍⵜ: ⴼⵔⵏ ⵉⵙⵖⵓⵏ."),
+    "الملفات المخفية" to listOf("Hidden files", "Fichiers masqués", "ⵉⴼⴰⵢⵍⵓⵜⵏ ⵉⵜⵜⵓⵙⵓⴼⵔⵏ"),
+    "العودة من الملفات المخفية" to listOf("Back from hidden files", "Retour des fichiers masqués", "ⵓⵖⴰⵍ ⵙⴳ ⵉⴼⴰⵢⵍⵓⵜⵏ"),
+    "إخفاء المحدد" to listOf("Hide selected", "Masquer la sélection", "ⵙⵓⴼⵔ ⵉⵜⵜⵓⴼⵔⵏ"),
+    "إظهار العناصر المحددة" to listOf("Unhide selected items", "Afficher les éléments sélectionnés", "ⵙⵙⴽⵏ ⵉⵙⵖⵓⵏ"),
+    "الملفات المخفية: حدد العناصر ثم أظهرها لاستعادتها." to listOf("Hidden files: select items and unhide them to restore.", "Fichiers masqués : sélectionnez puis affichez pour restaurer.", "ⵉⴼⴰⵢⵍⵓⵜⵏ ⵉⵜⵜⵓⵙⵓⴼⵔⵏ."),
+    "إعداد قفل الخصوصية" to listOf("Set privacy lock", "Configurer le verrou de confidentialité", "ⵙⵏⵓⵍⴼⵓ ⴰⵎⵙⴰⵔ ⵏ ⵜⴱⴰⴹⵉⵜ"),
+    "قفل الخصوصية" to listOf("Privacy lock", "Verrou de confidentialité", "ⴰⵎⵙⴰⵔ ⵏ ⵜⴱⴰⴹⵉⵜ"),
+    "أدخل رمز الخصوصية لفتح ملفاتك" to listOf("Enter your privacy PIN to unlock FileMaster", "Saisissez votre code pour déverrouiller FileMaster", "ⵙⵙⵉⵡⴹ ⴰⵏⴰⵍ ⵏ ⵜⴱⴰⴹⵉⵜ"),
+    "رمز PIN" to listOf("PIN", "Code PIN", "PIN"),
+    "فتح التطبيق" to listOf("Unlock app", "Déverrouiller", "ⵍⴷⵉ ⴰⵙⵏⴰⵙ"),
+    "إزالة القفل باستخدام الرمز" to listOf("Remove lock using PIN", "Supprimer le verrou avec le code", "ⴽⴽⵙ ⴰⵎⵙⴰⵔ"),
+    "الرمز غير صحيح." to listOf("Incorrect PIN.", "Code incorrect.", "ⴰⵏⴰⵍ ⵓⵔ ⵉⵎⵙⴰⵡⴰⵏ."),
+    "رمز PIN جديد" to listOf("New PIN", "Nouveau code PIN", "PIN ⴰⵎⴰⵢⵏⵓ"),
+    "حفظ الرمز" to listOf("Save PIN", "Enregistrer le code", "ⵙⴽⵍⵙ ⴰⵏⴰⵍ"),
+    "إغلاق المعاينة" to listOf("Close preview", "Fermer l’aperçu", "ⵎⴷⵍ ⵜⴰⵙⵎⵓⵔⵔⵉ"),
+    "تعذرت معاينة الصورة." to listOf("Could not preview image.", "Impossible d’afficher l’aperçu.", "ⵓⵔ ⵉⵣⵎⵉⵔ ⴰⴷ ⵉⵙⵎⵓⵔⵔⵉ ⵜⴰⵡⵍⴰⴼⵜ"),
+    "اختر أرشيفاً أولاً." to listOf("Choose an archive first.", "Choisissez d’abord une archive.", "ⴼⵔⵏ ⴰⵔⵛⵉⴼ ⴷⴰⵜ"),
+    "اختيار أرشيف" to listOf("Choose archive", "Choisir une archive", "ⴼⵔⵏ ⴰⵔⵛⵉⴼ"),
+    "معاينة محتويات الأرشيف" to listOf("Preview archive contents", "Aperçu du contenu de l’archive", "ⵙⵎⵓⵔⵔⵉ ⵉⴳⴱⵔⴰⵏ ⵏ ⵜⴰⵔⵛⵉⴼⵜ"),
     "اختر أرشيف ZIP للبدء." to listOf("Choose a ZIP archive to begin.", "Choisissez une archive ZIP pour commencer.", "ⴼⵔⵏ ⴰⵔⵛⵉⴼ ZIP ⵉ ⵓⴱⴷⵓ."),
     "تم اختيار الأرشيف. اختر مجلد الحفظ لفك الضغط." to listOf("Archive selected. Choose a destination folder.", "Archive sélectionnée. Choisissez un dossier de destination.", "ⵜⵜⵓⴼⵔⵏ ⴰⵔⵛⵉⴼ. ⴼⵔⵏ ⴰⴽⴰⵔⵏ."),
     "تم اختيار مجلد الحفظ. اضغط «فك الضغط الآن»." to listOf("Destination selected. Tap “Extract now”.", "Destination sélectionnée. Appuyez sur « Extraire maintenant ».", "ⵜⵜⵓⴼⵔⵏ ⴰⴽⴰⵔⵏ. ⵙⵎⵓⵔⵔⵉ ⵜⵓⵔⴰ."),
@@ -165,6 +215,8 @@ private fun FileMasterApp() {
     val context = androidx.compose.ui.platform.LocalContext.current
     val preferences = remember { context.getSharedPreferences("filemaster_preferences", android.content.Context.MODE_PRIVATE) }
     var language by remember { mutableStateOf(preferences.getString("language", "ar") ?: "ar") }
+    var darkMode by remember { mutableStateOf(preferences.getBoolean("dark_theme", true)) }
+    LaunchedEffect(darkMode) { setFileMasterPalette(darkMode) }
     var favoriteUris by remember { mutableStateOf(preferences.getStringSet("favorites", emptySet())?.toSet() ?: emptySet()) }
     var recentUris by remember { mutableStateOf(preferences.getString("recent", "")?.split("\n")?.filter { it.isNotBlank() } ?: emptyList()) }
     var favoritesOnly by remember { mutableStateOf(false) }
@@ -172,6 +224,10 @@ private fun FileMasterApp() {
     var recentOnly by remember { mutableStateOf(false) }
     var largeOnly by remember { mutableStateOf(false) }
     var languageMenuOpen by remember { mutableStateOf(false) }
+    var settingsOpen by remember { mutableStateOf(false) }
+    var privacyOpen by remember { mutableStateOf(false) }
+    var deviceInfoOpen by remember { mutableStateOf(false) }
+    var qrResult by remember { mutableStateOf<String?>(null) }
     fun tr(text: String): String = fileMasterText(text, language)
     val scope = rememberCoroutineScope()
     var selectedZip by remember { mutableStateOf<Uri?>(null) }
@@ -190,6 +246,21 @@ private fun FileMasterApp() {
     var managerDialog by remember { mutableStateOf("") }
     var managerName by remember { mutableStateOf("") }
     var moveOperation by remember { mutableStateOf(false) }
+    var trashMode by remember { mutableStateOf(false) }
+    var trashReturnFolder by remember { mutableStateOf<DocumentFile?>(null) }
+    var hiddenMode by remember { mutableStateOf(false) }
+    var hiddenReturnFolder by remember { mutableStateOf<DocumentFile?>(null) }
+    var previewBitmap by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
+    var previewTitle by remember { mutableStateOf("") }
+    var previewLoading by remember { mutableStateOf(false) }
+    var archivePreviewText by remember { mutableStateOf("") }
+    var privacyPinHash by remember { mutableStateOf(preferences.getString("privacy_pin_hash", null)) }
+    var isLocked by remember { mutableStateOf(privacyPinHash != null) }
+    var pinEntry by remember { mutableStateOf("") }
+    var pinError by remember { mutableStateOf("") }
+    var lanServer by remember { mutableStateOf<LocalFileShareServer?>(null) }
+    var lanShareUrl by remember { mutableStateOf("") }
+    DisposableEffect(lanServer) { onDispose { lanServer?.close() } }
 
     val zipPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
@@ -225,8 +296,12 @@ private fun FileMasterApp() {
             } catch (_: SecurityException) { }
             browseRootUri = uri
             browseFolder = DocumentFile.fromTreeUri(context, uri)
+            trashMode = false
+            trashReturnFolder = null
+            hiddenMode = false
+            hiddenReturnFolder = null
             browsePage = 0
-            browseFiles = browseFolder?.listFiles()?.sortedWith(
+            browseFiles = browseFolder?.listFiles()?.filter { it.name != ".FileMasterTrash" && it.name != ".FileMasterHidden" }?.sortedWith(
                 compareBy<DocumentFile> { !it.isDirectory }.thenBy { it.name.orEmpty().lowercase() }
             ) ?: emptyList()
             zipSelection = emptySet()
@@ -269,10 +344,34 @@ private fun FileMasterApp() {
         }
     }
 
-    MaterialTheme(colorScheme = darkColorScheme(
+    MaterialTheme(colorScheme = if (darkMode) darkColorScheme(
         primary = Accent, onPrimary = Ink, background = Ink, surface = Panel,
         onSurface = Color(0xFFF4F7FB), secondary = Muted
+    ) else lightColorScheme(
+        primary = Accent, onPrimary = Color.White, background = Ink, surface = Panel,
+        onSurface = Color(0xFF172033), secondary = Muted
     )) {
+        if (isLocked) {
+            Column(Modifier.fillMaxSize().background(Ink).padding(24.dp), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
+                Icon(Icons.Default.Storage, contentDescription = null, tint = Accent, modifier = Modifier.size(56.dp))
+                Spacer(Modifier.height(16.dp))
+                Text("FileMaster", color = Color(0xFFF4F7FB), style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+                Text("أدخل رمز الخصوصية لفتح ملفاتك", color = Muted)
+                Spacer(Modifier.height(16.dp))
+                OutlinedTextField(value = pinEntry, onValueChange = { pinEntry = it.filter(Char::isDigit).take(12); pinError = "" }, label = { Text("رمز PIN") }, singleLine = true)
+                if (pinError.isNotBlank()) Text(pinError, color = Color(0xFFFF8A80))
+                Button(onClick = {
+                    if (hashPrivacyPin(pinEntry) == privacyPinHash) { isLocked = false; pinEntry = ""; pinError = "" }
+                    else pinError = "الرمز غير صحيح."
+                }, modifier = Modifier.fillMaxWidth()) { Text("فتح التطبيق") }
+                TextButton(onClick = {
+                    if (hashPrivacyPin(pinEntry) == privacyPinHash) {
+                        preferences.edit().remove("privacy_pin_hash").apply()
+                        privacyPinHash = null; isLocked = false; pinEntry = ""; pinError = ""
+                    } else pinError = "أدخل الرمز الصحيح لإزالة القفل."
+                }) { Text("إزالة القفل باستخدام الرمز") }
+            }
+        } else {
         Scaffold(
             containerColor = Ink,
             topBar = {
@@ -284,6 +383,8 @@ private fun FileMasterApp() {
                         }
                     },
                     actions = {
+                        if (privacyPinHash != null) IconButton(onClick = { pinEntry = ""; pinError = ""; isLocked = true }) { Icon(Icons.Default.Storage, contentDescription = tr("قفل الخصوصية"), tint = Accent) }
+                        IconButton(onClick = { settingsOpen = true }) { Icon(Icons.Default.Settings, contentDescription = tr("الإعدادات"), tint = Accent) }
                         Box {
                             TextButton(onClick = { languageMenuOpen = true }) { Text(tr("اللغة") + ": " + fileMasterLanguageName(language), color = Accent) }
                             DropdownMenu(expanded = languageMenuOpen, onDismissRequest = { languageMenuOpen = false }) {
@@ -344,20 +445,77 @@ private fun FileMasterApp() {
                         if (browseFolder != null) {
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 OutlinedButton(onClick = {
-                                    val root = browseFolder
-                                    val parent = root?.parentFile
-                                    if (parent != null) {
-                                        browsePage = 0
-                                        browseFolder = parent
-                                        browseFiles = parent.listFiles().sortedWith(compareBy<DocumentFile> { !it.isDirectory }.thenBy { it.name.orEmpty().lowercase() })
-                                        zipSelection = emptySet()
+                                    if (trashMode || hiddenMode) {
+                                        val back = if (trashMode) trashReturnFolder else hiddenReturnFolder
+                                        if (back != null) {
+                                            browseFolder = back
+                                            browseFiles = back.listFiles().filter { it.name != ".FileMasterTrash" && it.name != ".FileMasterHidden" }.sortedWith(compareBy<DocumentFile> { !it.isDirectory }.thenBy { it.name.orEmpty().lowercase() })
+                                        }
+                                        trashMode = false
+                                        trashReturnFolder = null
+                                        hiddenMode = false
+                                        hiddenReturnFolder = null
+                                    } else {
+                                        val parent = browseFolder?.parentFile
+                                        if (parent != null) {
+                                            browsePage = 0
+                                            browseFolder = parent
+                                            browseFiles = parent.listFiles().filter { it.name != ".FileMasterTrash" && it.name != ".FileMasterHidden" }.sortedWith(compareBy<DocumentFile> { !it.isDirectory }.thenBy { it.name.orEmpty().lowercase() })
+                                            zipSelection = emptySet()
+                                        }
                                     }
-                                }) { Text(tr("المجلد السابق")) }
+                                }) { Text(if (trashMode) tr("العودة من سلة المحذوفات") else if (hiddenMode) tr("العودة من الملفات المخفية") else tr("المجلد السابق")) }
                                 OutlinedButton(onClick = {
                                     destination = browseRootUri
                                     status = tr("تم تعيين المجلد الرئيسي المختار كوجهة لفك الضغط.")
                                     success = true
                                 }) { Text(tr("استخدام كوجهة")) }
+                                if (!trashMode && !hiddenMode) OutlinedButton(onClick = {
+                                    val current = browseFolder
+                                    val trash = current?.let { getOrCreateTrashFolder(it) }
+                                    if (trash == null) {
+                                        status = tr("تعذر إنشاء سلة المحذوفات في هذا المجلد.")
+                                        success = false
+                                    } else {
+                                        trashReturnFolder = current
+                                        browseFolder = trash
+                                        browseFiles = trash.listFiles().sortedWith(compareBy<DocumentFile> { !it.isDirectory }.thenBy { it.name.orEmpty().lowercase() })
+                                        trashMode = true
+                                        zipSelection = emptySet()
+                                        browsePage = 0
+                                        status = tr("سلة المحذوفات: حدد العناصر لاستعادتها.")
+                                    }
+                                }) { Text(tr("سلة المحذوفات")) }
+                                if (!trashMode && !hiddenMode) OutlinedButton(onClick = {
+                                    val current = browseFolder
+                                    val hidden = current?.let { getOrCreateHiddenFolder(it) }
+                                    if (hidden == null) { status = tr("تعذر إنشاء مجلد الملفات المخفية."); success = false }
+                                    else {
+                                        hiddenReturnFolder = current
+                                        browseFolder = hidden
+                                        browseFiles = hidden.listFiles().sortedWith(compareBy<DocumentFile> { !it.isDirectory }.thenBy { it.name.orEmpty().lowercase() })
+                                        hiddenMode = true
+                                        zipSelection = emptySet()
+                                        browsePage = 0
+                                        status = tr("الملفات المخفية: حدد العناصر ثم أظهرها لاستعادتها.")
+                                    }
+                                }) { Text(tr("الملفات المخفية")) }
+                            }
+                            if ((trashMode || hiddenMode) && zipSelection.isNotEmpty()) {
+                                OutlinedButton(onClick = {
+                                    val target = if (trashMode) trashReturnFolder else hiddenReturnFolder
+                                    val selected = browseFiles.filter { it.uri.toString() in zipSelection }
+                                    if (target == null) {
+                                        status = tr("اختر مجلد الملفات الأصلي أولاً.")
+                                        success = false
+                                    } else {
+                                        val result = restoreFromTrash(context, selected, target)
+                                        status = result
+                                        success = result.startsWith("تمت استعادة")
+                                        browseFiles = browseFolder?.listFiles()?.sortedWith(compareBy<DocumentFile> { !it.isDirectory }.thenBy { it.name.orEmpty().lowercase() }) ?: emptyList()
+                                        zipSelection = emptySet()
+                                    }
+                                }, modifier = Modifier.fillMaxWidth()) { Text(if (trashMode) tr("استعادة العناصر المحددة") else tr("إظهار العناصر المحددة")) }
                             }
                             OutlinedTextField(
                                 value = browseSearch,
@@ -379,7 +537,7 @@ private fun FileMasterApp() {
                             val folderBytes = browseFiles.sumOf { it.length().coerceAtLeast(0L) }
                             Card(colors = CardDefaults.cardColors(containerColor = Ink), shape = RoundedCornerShape(16.dp)) {
                                 Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                    Text("Folder overview", fontWeight = FontWeight.Bold, color = Accent)
+                                    Text(if (trashMode) tr("سلة المحذوفات") else if (hiddenMode) tr("الملفات المخفية") else tr("محتويات المجلد"), fontWeight = FontWeight.Bold, color = Accent)
                                     Text("${browseFiles.size} items • ${formatFileSize(folderBytes)}", color = Muted, style = MaterialTheme.typography.bodySmall)
                                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                         FilterChip(selected = favoritesOnly, onClick = { favoritesOnly = !favoritesOnly; imagesOnly = false; browsePage = 0 }, label = { Text("Favorites") })
@@ -401,19 +559,33 @@ private fun FileMasterApp() {
                                             if (file.isDirectory) {
                                                 browsePage = 0
                                                 browseFolder = file
-                                                browseFiles = file.listFiles().sortedWith(compareBy<DocumentFile> { !it.isDirectory }.thenBy { it.name.orEmpty().lowercase() })
+                                                browseFiles = file.listFiles().filter { it.name != ".FileMasterTrash" && it.name != ".FileMasterHidden" }.sortedWith(compareBy<DocumentFile> { !it.isDirectory }.thenBy { it.name.orEmpty().lowercase() })
                                                 zipSelection = emptySet()
                                             } else {
                                                 val fileName = file.name ?: "file"
                                                 recentUris = (listOf(file.uri.toString()) + recentUris.filterNot { it == file.uri.toString() }).take(20)
                                                 preferences.edit().putString("recent", recentUris.joinToString("\n")).apply()
-                                                if (fileName.lowercase().endsWith(".zip")) {
+                                                val extension = fileName.substringAfterLast('.', "").lowercase()
+                                                if (extension in setOf("zip", "7z", "rar", "tar", "tgz", "gz")) {
                                                     selectedZip = file.uri
                                                     selectedName = fileName
                                                     status = tr("تم اختيار ") + fileName + tr(". استخدم زر فك الضغط لاستخراجه.")
                                                     success = true
+                                                } else if (extension in setOf("jpg", "jpeg", "png", "webp", "bmp", "gif")) {
+                                                    previewTitle = fileName
+                                                    previewBitmap = null
+                                                    previewLoading = true
+                                                    scope.launch {
+                                                        val bitmap = withContext(Dispatchers.IO) {
+                                                            try { context.contentResolver.openInputStream(file.uri)?.use { android.graphics.BitmapFactory.decodeStream(it) } }
+                                                            catch (_: Exception) { null }
+                                                        }
+                                                        previewBitmap = bitmap
+                                                        previewLoading = false
+                                                        status = if (bitmap != null) tr("تم فتح المعاينة: ") + fileName else tr("تعذرت معاينة الصورة.")
+                                                        success = bitmap != null
+                                                    }
                                                 } else {
-                                                    val extension = fileName.substringAfterLast('.', "").lowercase()
                                                     val mime = MimeTypeMap.getSingleton().getMimeTypeFromExtension(extension) ?: "*/*"
                                                     try {
                                                         context.startActivity(Intent(Intent.ACTION_VIEW).setDataAndType(file.uri, mime).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION))
@@ -461,6 +633,21 @@ private fun FileMasterApp() {
                                             managerDialog = "rename"
                                         } else status = tr("حدد عنصراً واحداً لإعادة تسميته.")
                                     }, modifier = Modifier.weight(1f)) { Text(tr("إعادة تسمية")) }
+                                    OutlinedButton(onClick = {
+                                        val selected = browseFiles.filter { it.uri.toString() in zipSelection }
+                                        if (selected.isEmpty()) status = tr("حدد عناصر لإخفائها أولاً.")
+                                        else {
+                                            val hidden = browseFolder?.let { getOrCreateHiddenFolder(it) }
+                                            if (hidden == null) { status = tr("تعذر إنشاء مجلد الملفات المخفية."); success = false }
+                                            else {
+                                                val result = moveToTrash(context, selected, hidden, "المجلد المخفي")
+                                                status = result
+                                                success = result.startsWith("نُقلت العناصر إلى المجلد المخفي")
+                                                browseFiles = browseFolder?.listFiles()?.filter { it.name != ".FileMasterTrash" && it.name != ".FileMasterHidden" }?.sortedWith(compareBy<DocumentFile> { !it.isDirectory }.thenBy { it.name.orEmpty().lowercase() }) ?: emptyList()
+                                                zipSelection = emptySet()
+                                            }
+                                        }
+                                    }, modifier = Modifier.weight(1f)) { Text(tr("إخفاء المحدد")) }
                                     OutlinedButton(onClick = { managerDialog = "delete" }, modifier = Modifier.weight(1f)) { Text(tr("حذف")) }
                                 }
                                 OutlinedButton(
@@ -494,14 +681,122 @@ private fun FileMasterApp() {
                         }
                     }
                 }
+                Card(colors = CardDefaults.cardColors(containerColor = Panel), shape = RoundedCornerShape(20.dp)) {
+                    Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("حالة الجهاز", fontWeight = FontWeight.Bold, color = Accent)
+                        val am = remember { context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager }
+                        val mi = remember { ActivityManager.MemoryInfo().also { am.getMemoryInfo(it) } }
+                        Text("RAM المتاحة: " + formatFileSize(mi.availMem) + " من " + formatFileSize(mi.totalMem), color = Muted, style = MaterialTheme.typography.bodySmall)
+                        Text("ملاحظة: لا يوفّر Android قياساً موحداً موثوقاً لسرعة الإنترنت أو نسبة CPU لجميع التطبيقات.", color = Muted, style = MaterialTheme.typography.bodySmall)
+                        OutlinedButton(onClick = {
+                            val selected = browseFiles.filter { it.uri.toString() in zipSelection && !it.isDirectory }
+                            if (selected.isEmpty()) { status = "حدد ملفات أولاً للإرسال."; success = false } else {
+                                val sendIntent = Intent(if (selected.size == 1) Intent.ACTION_SEND else Intent.ACTION_SEND_MULTIPLE).apply {
+                                    type = "*/*"
+                                    if (selected.size == 1) putExtra(Intent.EXTRA_STREAM, selected.first().uri)
+                                    else putParcelableArrayListExtra(Intent.EXTRA_STREAM, ArrayList(selected.map { it.uri }))
+                                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                }
+                                try { context.startActivity(Intent.createChooser(sendIntent, "إرسال عبر Bluetooth أو تطبيق Wi‑Fi"))
+                                    status = "اختر Bluetooth أو تطبيق مشاركة متوافق من قائمة Android."; success = true
+                                } catch (e: Exception) { status = "تعذر فتح قائمة المشاركة: " + (e.localizedMessage ?: "خطأ"); success = false }
+                            }
+                        }, modifier = Modifier.fillMaxWidth()) { Icon(Icons.Default.Share, contentDescription = null); Spacer(Modifier.width(8.dp)); Text("إرسال الملفات عبر تطبيقات المشاركة") }
+                        if (lanShareUrl.isNotBlank()) {
+                            Text("رابط LAN: " + lanShareUrl, color = Accent, style = MaterialTheme.typography.bodySmall)
+                            Text("أي جهاز على الشبكة المحلية يملك الرابط يمكنه تنزيل الملفات المحددة. أوقف المشاركة بعد الانتهاء.", color = Muted, style = MaterialTheme.typography.bodySmall)
+                        }
+                        OutlinedButton(onClick = {
+                            if (lanServer != null) {
+                                lanServer?.close()
+                                lanServer = null
+                                lanShareUrl = ""
+                                status = "تم إيقاف مشاركة الشبكة المحلية."
+                                success = true
+                            } else {
+                                val selected = browseFiles.filter { it.uri.toString() in zipSelection && !it.isDirectory }
+                                if (selected.isEmpty()) {
+                                    status = "حدد ملفاً واحداً على الأقل أولاً."
+                                    success = false
+                                } else {
+                                    try {
+                                        val server = LocalFileShareServer(context, selected)
+                                        lanServer = server
+                                        lanShareUrl = server.url
+                                        scope.launch(Dispatchers.IO) { server.serve() }
+                                        status = "بدأت مشاركة الملفات على الشبكة المحلية: " + server.url
+                                        success = true
+                                    } catch (e: Exception) {
+                                        status = "تعذر بدء مشاركة الشبكة المحلية: " + (e.localizedMessage ?: "خطأ")
+                                        success = false
+                                    }
+                                }
+                            }
+                        }, modifier = Modifier.fillMaxWidth()) {
+                            Text(if (lanServer == null) "مشاركة الملفات عبر الشبكة المحلية" else "إيقاف مشاركة الشبكة المحلية")
+                        }
+                        OutlinedButton(onClick = {
+                            val junkExtensions = setOf("tmp", "temp", "log", "bak", "old", "part", "crdownload", "cache")
+                            val candidates = browseFiles.filter { file ->
+                                if (file.isDirectory || file.name == ".FileMasterTrash" || file.name == ".FileMasterHidden") false
+                                else {
+                                    val name = file.name.orEmpty().lowercase()
+                                    val ext = name.substringAfterLast('.', "")
+                                    ext in junkExtensions || name == "thumbs.db" || name == ".ds_store" || name.startsWith("~$")
+                                }
+                            }
+                            zipSelection = candidates.map { it.uri.toString() }.toSet()
+                            status = if (candidates.isEmpty()) "لم يُعثر على ملفات مؤقتة واضحة في المجلد الحالي."
+                                else "عُثر على " + candidates.size + " ملفاً مرشحاً للتنظيف. راجع العناصر المحددة؛ زر الحذف ينقلها إلى سلة المحذوفات."
+                            success = candidates.isEmpty()
+                        }, modifier = Modifier.fillMaxWidth()) {
+                            Text("فحص الملفات المؤقتة بأمان")
+                        }
+                    }
+                }
+                
+                ActionCard(
+                    icon = { Icon(Icons.Default.QrCodeScanner, contentDescription = null, tint = Accent) },
+                    title = "ماسح QR",
+                    detail = qrResult ?: "امسح رمز QR أو باركود بالكاميرا",
+                    buttonText = "مسح الآن",
+                    onClick = {
+                        GmsBarcodeScanning.getClient(context).startScan()
+                            .addOnSuccessListener { barcode ->
+                                qrResult = barcode.rawValue ?: "تمت قراءة الرمز دون نص"
+                                status = qrResult ?: "تمت القراءة"
+                                success = true
+                            }
+                            .addOnCanceledListener { status = "تم إلغاء المسح"; success = false }
+                            .addOnFailureListener { error ->
+                                status = "تعذر تشغيل ماسح QR: " + (error.localizedMessage ?: "خطأ غير معروف")
+                                success = false
+                            }
+                    }
+                )
+
                 Text(tr("أدوات سريعة"), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 ActionCard(
                     icon = { Icon(Icons.Default.InsertDriveFile, contentDescription = null, tint = Accent) },
-                    title = tr("اختيار أرشيف ZIP"),
+                    title = tr("اختيار أرشيف"),
                     detail = selectedName ?: tr("اختر ملفاً من ذاكرة الهاتف"),
                     buttonText = tr("تصفح الملفات"),
-                    onClick = { zipPicker.launch(arrayOf("application/zip", "application/x-zip-compressed", "application/octet-stream", "*/*")) }
+                    onClick = { zipPicker.launch(arrayOf("application/zip", "application/x-zip-compressed", "application/x-7z-compressed", "application/vnd.rar", "application/x-rar-compressed", "application/x-tar", "application/gzip", "application/x-gzip", "application/octet-stream", "*/*")) }
                 )
+                OutlinedButton(onClick = {
+                    val archive = selectedZip
+                    val archiveName = selectedName
+                    if (archive == null || archiveName == null) {
+                        status = tr("اختر أرشيفاً أولاً.")
+                        success = false
+                    } else {
+                        busy = true
+                        scope.launch {
+                            archivePreviewText = withContext(Dispatchers.IO) { previewArchiveContents(context, archive, archiveName) }
+                            busy = false
+                        }
+                    }
+                }, enabled = !busy, modifier = Modifier.fillMaxWidth()) { Text(tr("معاينة محتويات الأرشيف")) }
                 ActionCard(
                     icon = { Icon(Icons.Default.FolderOpen, contentDescription = null, tint = Accent) },
                     title = tr("مجلد الاستخراج"),
@@ -515,7 +810,7 @@ private fun FileMasterApp() {
                         val archive = selectedZip
                         val target = destination
                         if (archive == null) {
-                            status = tr("اختر ملف ZIP أولاً.")
+                            status = tr("اختر أرشيفاً أولاً.")
                             success = false
                         } else if (target == null) {
                             status = tr("اختر مجلد الحفظ أولاً.")
@@ -525,7 +820,7 @@ private fun FileMasterApp() {
                             success = false
                             status = tr("جارٍ فك الضغط…")
                             scope.launch {
-                                val result = withContext(Dispatchers.IO) { extractZipSafely(context, archive, target) }
+                                val result = withContext(Dispatchers.IO) { extractArchiveSafely(context, archive, selectedName ?: "archive.zip", target) }
                                 busy = false
                                 success = result.startsWith(tr("تم استخراج"))
                                 status = result
@@ -563,6 +858,55 @@ private fun FileMasterApp() {
                 )
             }
         }
+        if (archivePreviewText.isNotBlank()) {
+            AlertDialog(
+                onDismissRequest = { archivePreviewText = "" },
+                title = { Text(tr("معاينة محتويات الأرشيف")) },
+                text = { Text(archivePreviewText, modifier = Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState())) },
+                confirmButton = { TextButton(onClick = { archivePreviewText = "" }) { Text(tr("إغلاق المعاينة")) } }
+            )
+        }
+        if (previewLoading || previewBitmap != null) {
+            Dialog(onDismissRequest = { previewBitmap = null; previewTitle = ""; previewLoading = false }) {
+                Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Panel), shape = RoundedCornerShape(20.dp)) {
+                    Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(previewTitle, color = Color(0xFFF4F7FB), fontWeight = FontWeight.Bold, maxLines = 2)
+                        when {
+                            previewLoading -> CircularProgressIndicator(color = Accent)
+                            previewBitmap != null -> Image(bitmap = previewBitmap!!.asImageBitmap(), contentDescription = previewTitle, modifier = Modifier.fillMaxWidth().heightIn(max = 520.dp), contentScale = ContentScale.Fit)
+                            else -> Text(tr("تعذرت معاينة الصورة."), color = Muted)
+                        }
+                        TextButton(onClick = { previewBitmap = null; previewTitle = ""; previewLoading = false }) { Text(tr("إغلاق المعاينة")) }
+                    }
+                }
+            }
+        }
+        if (managerDialog == "pinSetup") {
+            AlertDialog(
+                onDismissRequest = { managerDialog = ""; managerName = ""; pinError = "" },
+                title = { Text("إعداد قفل الخصوصية") },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("أنشئ رمز PIN من 4 أرقام على الأقل. هذا القفل يحجب واجهة التطبيق ولا يشفر الملفات نفسها.", color = Muted)
+                        OutlinedTextField(value = managerName, onValueChange = { managerName = it.filter(Char::isDigit).take(12); pinError = "" }, label = { Text("رمز PIN جديد") }, singleLine = true)
+                        if (pinError.isNotBlank()) Text(pinError, color = Color(0xFFFF8A80))
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = {
+                        if (managerName.length < 4) pinError = "يجب أن يتكون الرمز من 4 أرقام على الأقل."
+                        else {
+                            val hash = hashPrivacyPin(managerName)
+                            preferences.edit().putString("privacy_pin_hash", hash).apply()
+                            privacyPinHash = hash
+                            managerName = ""; managerDialog = ""; pinError = ""
+                            status = "تم إعداد قفل الخصوصية."; success = true
+                        }
+                    }) { Text("حفظ الرمز") }
+                },
+                dismissButton = { TextButton(onClick = { managerDialog = ""; managerName = ""; pinError = "" }) { Text("إلغاء") } }
+            )
+        }
         if (managerDialog == "mkdir" || managerDialog == "rename") {
             AlertDialog(
                 onDismissRequest = { managerDialog = "" },
@@ -586,23 +930,88 @@ private fun FileMasterApp() {
                 dismissButton = { TextButton(onClick = { managerDialog = "" }) { Text(tr("إلغاء")) } }
             )
         }
+        if (settingsOpen) {
+            AlertDialog(
+                onDismissRequest = { settingsOpen = false },
+                title = { Text("إعدادات FileMaster") },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Text("المطور: Ahmedbecetti")
+                        Text("الدعم: ahmedbecetti41@gmail.com")
+                        Text("اللغة: " + fileMasterLanguageName(language))
+                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            listOf("ar", "en", "fr", "tz").forEach { lang ->
+                                OutlinedButton(onClick = {
+                                    language = lang
+                                    preferences.edit().putString("language", lang).apply()
+                                }) { Text(fileMasterLanguageName(lang)) }
+                            }
+                        }
+                        OutlinedButton(onClick = { settingsOpen = false; managerName = ""; pinError = ""; managerDialog = "pinSetup" }, modifier = Modifier.fillMaxWidth()) {
+                            Text(if (privacyPinHash == null) "إعداد قفل الخصوصية" else "تغيير/إعادة إعداد رمز الخصوصية")
+                        }
+                        OutlinedButton(onClick = {
+                            darkMode = !darkMode
+                            preferences.edit().putBoolean("dark_theme", darkMode).apply()
+                            setFileMasterPalette(darkMode)
+                        }, modifier = Modifier.fillMaxWidth()) {
+                            Text(if (darkMode) "التبديل إلى المظهر الفاتح" else "التبديل إلى المظهر الداكن")
+                        }
+                        OutlinedButton(onClick = { settingsOpen = false; privacyOpen = true }, modifier = Modifier.fillMaxWidth()) {
+                            Text("سياسة الخصوصية")
+                        }
+                        OutlinedButton(onClick = { settingsOpen = false; deviceInfoOpen = true }, modifier = Modifier.fillMaxWidth()) {
+                            Text("معلومات الجهاز والذاكرة")
+                        }
+                    }
+                },
+                confirmButton = { TextButton(onClick = { settingsOpen = false }) { Text("إغلاق") } }
+            )
+        }
+        if (privacyOpen) {
+            AlertDialog(
+                onDismissRequest = { privacyOpen = false },
+                title = { Text("سياسة الخصوصية — ملخص") },
+                text = { Text("تعمل عمليات إدارة الملفات محلياً على جهازك. قد تستخدم النسخة الحالية إعلانات Google Mobile Ads، والتي قد تعالج بيانات وفق إعدادات وسياسات Google. لا ترفع ملفاتك إلى خوادم FileMaster ضمن وظائف إدارة الملفات الحالية. هذه شاشة ملخص وليست بديلاً عن نشر سياسة قانونية كاملة ورابطها قبل الإصدار العام.") },
+                confirmButton = { TextButton(onClick = { privacyOpen = false }) { Text("فهمت") } }
+            )
+        }
+        if (deviceInfoOpen) {
+            val am = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+            val mi = ActivityManager.MemoryInfo().also { am.getMemoryInfo(it) }
+            AlertDialog(
+                onDismissRequest = { deviceInfoOpen = false },
+                title = { Text("معلومات الجهاز") },
+                text = { Text("الذاكرة الكلية: " + formatFileSize(mi.totalMem) + "\nالذاكرة المتاحة حالياً: " + formatFileSize(mi.availMem) + "\nالذاكرة المستخدمة تقريبياً: " + formatFileSize((mi.totalMem - mi.availMem).coerceAtLeast(0)) + "\n\nلا تعرض هذه الشاشة نسبة CPU أو سرعة الإنترنت الحية؛ يلزم تنفيذ قياس مستقل موثوق لهما.") },
+                confirmButton = { TextButton(onClick = { deviceInfoOpen = false }) { Text("إغلاق") } }
+            )
+        }
         if (managerDialog == "delete") {
             AlertDialog(
                 onDismissRequest = { managerDialog = "" },
                 title = { Text(tr("حذف العناصر المحددة؟")) },
-                text = { Text(tr("سيتم حذف ") + zipSelection.size + tr(" عنصر. قد لا يمكن التراجع عن ذلك.")) },
+                text = { Text(if (trashMode) tr("سيتم حذف العناصر المحددة نهائياً.") else tr("ستنقل العناصر المحددة إلى سلة المحذوفات ويمكن استعادتها لاحقاً.")) },
                 confirmButton = {
                     TextButton(onClick = {
                         val targets = browseFiles.filter { it.uri.toString() in zipSelection }
-                        val removed = targets.count { it.delete() }
-                        status = tr("تم حذف ") + removed + tr(" من ") + targets.size + tr(" عنصر.")
+                        val result = if (trashMode) {
+                            val removed = targets.count { it.delete() }
+                            tr("حُذف نهائياً ") + removed + tr(" من ") + targets.size + tr(" عنصر.")
+                        } else {
+                            val trashParent = if (hiddenMode) hiddenReturnFolder else browseFolder
+                            val trash = trashParent?.let { getOrCreateTrashFolder(it) }
+                            if (trash == null) tr("تعذر إنشاء سلة المحذوفات؛ لم تُحذف الملفات.") else moveToTrash(context, targets, trash)
+                        }
+                        status = result
+                        success = result.startsWith("نُقلت العناصر إلى سلة المحذوفات") || result.startsWith("حُذف نهائياً")
                         managerDialog = ""
                         zipSelection = emptySet()
-                        browseFiles = browseFolder?.listFiles()?.sortedWith(compareBy<DocumentFile> { !it.isDirectory }.thenBy { it.name.orEmpty().lowercase() }) ?: emptyList()
+                        browseFiles = browseFolder?.listFiles()?.filter { (trashMode || hiddenMode) || (it.name != ".FileMasterTrash" && it.name != ".FileMasterHidden") }?.sortedWith(compareBy<DocumentFile> { !it.isDirectory }.thenBy { it.name.orEmpty().lowercase() }) ?: emptyList()
                     }) { Text(tr("حذف")) }
                 },
                 dismissButton = { TextButton(onClick = { managerDialog = "" }) { Text(tr("إلغاء")) } }
             )
+        }
         }
     }
 }
@@ -651,6 +1060,88 @@ private fun ActionCard(
             OutlinedButton(onClick = onClick, shape = RoundedCornerShape(14.dp)) { Text(buttonText) }
         }
     }
+}
+
+private fun hashPrivacyPin(pin: String): String {
+    val input = "FileMaster::PrivacyLock::v1:" + pin
+    val bytes = java.security.MessageDigest.getInstance("SHA-256").digest(input.toByteArray(Charsets.UTF_8))
+    return bytes.joinToString("") { "%02x".format(it) }
+}
+
+private fun getOrCreateHiddenFolder(parent: DocumentFile): DocumentFile? {
+    val existing = parent.findFile(".FileMasterHidden")
+    if (existing != null) return existing.takeIf { it.isDirectory }
+    return parent.createDirectory(".FileMasterHidden")
+}
+
+private fun getOrCreateTrashFolder(parent: DocumentFile): DocumentFile? {
+    val existing = parent.findFile(".FileMasterTrash")
+    if (existing != null) return existing.takeIf { it.isDirectory }
+    return parent.createDirectory(".FileMasterTrash")
+}
+
+private fun uniqueDocumentName(parent: DocumentFile, original: String): String {
+    if (parent.findFile(original) == null) return original
+    val dot = original.lastIndexOf('.')
+    val stem = if (dot > 0) original.substring(0, dot) else original
+    val ext = if (dot > 0) original.substring(dot) else ""
+    var index = 1
+    while (index < 10000) {
+        val candidate = stem + "-restored-" + index + ext
+        if (parent.findFile(candidate) == null) return candidate
+        index++
+    }
+    return System.currentTimeMillis().toString() + "-" + original
+}
+
+private fun moveToTrash(context: android.content.Context, sources: List<DocumentFile>, trash: DocumentFile, label: String = "سلة المحذوفات"): String {
+    var moved = 0
+    val errors = mutableListOf<String>()
+    for (source in sources) {
+        var staging: DocumentFile? = null
+        try {
+            val name = uniqueDocumentName(trash, source.name ?: "item")
+            val target = (if (source.isDirectory) trash.createDirectory(name) else trash.createFile("application/octet-stream", name))
+                ?: throw IllegalStateException("تعذر إنشاء عنصر في السلة")
+            staging = target
+            if (source.isDirectory) for (child in source.listFiles()) copyDocumentTree(context, child, target)
+            else context.contentResolver.openInputStream(source.uri)?.use { input ->
+                context.contentResolver.openOutputStream(target.uri, "w")?.use { output -> input.copyTo(output, 32768) }
+                    ?: throw IllegalStateException("تعذرت الكتابة إلى السلة")
+            } ?: throw IllegalStateException("تعذرت قراءة الملف")
+            if (!source.delete()) throw IllegalStateException("تعذر حذف المصدر بعد النسخ")
+            moved++
+        } catch (e: Exception) {
+            staging?.delete()
+            errors += (source.name ?: "item") + ": " + (e.localizedMessage ?: "error")
+        }
+    }
+    return if (errors.isEmpty()) "نُقلت العناصر إلى " + label + ": " + moved else "نُقلت " + moved + " عناصر إلى " + label + "؛ تعذرت بعض العمليات: " + errors.joinToString("; ")
+}
+
+private fun restoreFromTrash(context: android.content.Context, sources: List<DocumentFile>, destination: DocumentFile): String {
+    var restored = 0
+    val errors = mutableListOf<String>()
+    for (source in sources) {
+        var staging: DocumentFile? = null
+        try {
+            val name = uniqueDocumentName(destination, source.name ?: "restored-item")
+            val target = (if (source.isDirectory) destination.createDirectory(name) else destination.createFile("application/octet-stream", name))
+                ?: throw IllegalStateException("تعذر إنشاء العنصر المستعاد")
+            staging = target
+            if (source.isDirectory) for (child in source.listFiles()) copyDocumentTree(context, child, target)
+            else context.contentResolver.openInputStream(source.uri)?.use { input ->
+                context.contentResolver.openOutputStream(target.uri, "w")?.use { output -> input.copyTo(output, 32768) }
+                    ?: throw IllegalStateException("تعذرت الكتابة إلى الوجهة")
+            } ?: throw IllegalStateException("تعذرت قراءة العنصر")
+            if (!source.delete()) throw IllegalStateException("تم النسخ لكن تعذر حذف نسخة السلة")
+            restored++
+        } catch (e: Exception) {
+            staging?.delete()
+            errors += (source.name ?: "item") + ": " + (e.localizedMessage ?: "error")
+        }
+    }
+    return if (errors.isEmpty()) "تمت استعادة " + restored + " عنصر." else "تمت استعادة " + restored + " عناصر؛ أخطاء: " + errors.joinToString("; ")
 }
 
 private fun findDuplicateDocuments(context: android.content.Context, files: List<DocumentFile>): List<DocumentFile> {
@@ -751,7 +1242,20 @@ private fun copyDocumentTree(context: android.content.Context, source: DocumentF
     }
 }
 
-private fun extractZipSafely(context: android.content.Context, archiveUri: Uri, destinationUri: Uri): String {
+private fun uniqueArchiveOutputName(parent: DocumentFile, original: String): String {
+    val dot = original.lastIndexOf('.')
+    val stem = if (dot > 0) original.substring(0, dot) else original
+    val extension = if (dot > 0) original.substring(dot) else ""
+    var suffix = 1
+    while (suffix < 10000) {
+        val candidate = stem + "-extracted-" + suffix + extension
+        if (parent.findFile(candidate) == null) return candidate
+        suffix++
+    }
+    return System.currentTimeMillis().toString() + "-" + original
+}
+
+internal fun extractZipSafely(context: android.content.Context, archiveUri: Uri, destinationUri: Uri): String {
     var extractedFiles = 0
     var extractedBytes = 0L
     var entryCount = 0
@@ -807,11 +1311,9 @@ private fun extractZipSafely(context: android.content.Context, archiveUri: Uri, 
                             if (existing?.isDirectory == true) {
                                 throw IllegalStateException("يوجد مجلد بالاسم المطلوب للملف: " + leaf)
                             }
-                            if (existing != null && !existing.delete()) {
-                                throw IllegalStateException("تعذر استبدال الملف: " + leaf)
-                            }
-                            val outputFile = parent.createFile("application/octet-stream", leaf)
-                                ?: throw IllegalStateException("تعذر إنشاء الملف: " + leaf)
+                            val outputName = if (existing == null) leaf else uniqueArchiveOutputName(parent, leaf)
+                            val outputFile = parent.createFile("application/octet-stream", outputName)
+                                ?: throw IllegalStateException("تعذر إنشاء الملف: " + outputName)
                             context.contentResolver.openOutputStream(outputFile.uri, "w")?.use { output ->
                                 val buffer = ByteArray(32 * 1024)
                                 while (true) {
